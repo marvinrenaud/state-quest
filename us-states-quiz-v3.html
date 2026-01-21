@@ -852,16 +852,12 @@ const CheckResults = ({ correct, total, onClose }) => (
 );
 
 // Full US Map with optional labels
-const USMap = ({ onSelect, answers, selectedId, showResults, correctStates, showLabels }) => {
+const USMap = ({ onSelect, answers, selectedId, showResults, answeredStates, showLabels }) => {
     const getStateClass = (id) => {
         let cls = 'state-path';
         if (selectedId === id) cls += ' selected';
-        if (showResults && answers && answers[id]) {
-            cls += correctStates && correctStates.has(id) ? ' correct' : ' incorrect';
-        } else if (answers && answers[id]) {
-            cls += ' labeled';
-        }
-        if (correctStates && correctStates.has(id) && !showResults) {
+        // All answered states get the same blue "correct" styling
+        if (answeredStates && answeredStates.has(id)) {
             cls += ' correct';
         }
         return cls;
@@ -877,7 +873,7 @@ const USMap = ({ onSelect, answers, selectedId, showResults, correctStates, show
                     onClick={() => onSelect && onSelect(state)}
                 />
             ))}
-            {showLabels && correctStates && Array.from(correctStates).map(id => {
+            {showLabels && answeredStates && Array.from(answeredStates).map(id => {
                 const state = STATES[id];
                 if (!state) return null;
                 return (
@@ -1046,12 +1042,15 @@ const ModeSelector = ({ onSelect, timerEnabled, onTimerToggle }) => (
 
 // Full Map Quiz with state labels
 const FullMapQuiz = ({ onComplete, timerEnabled, bestTime }) => {
-    const [answers, setAnswers] = useState({});
+    const [answers, setAnswers] = useState({}); // {stateId: userAnswer}
     const [selected, setSelected] = useState(null);
     const [input, setInput] = useState('');
     const [showCheck, setShowCheck] = useState(false);
     const [checkResult, setCheckResult] = useState(null);
-    const [correctStates, setCorrectStates] = useState(new Set());
+    const [answeredStates, setAnsweredStates] = useState(new Set()); // All answered (correct or not)
+    const [correctStates, setCorrectStates] = useState(new Set()); // Only correct answers
+    const [wrongAnswers, setWrongAnswers] = useState([]); // [{stateId, userAnswer, correctAnswer}]
+    const [showReview, setShowReview] = useState(false);
     const [startTime] = useState(Date.now());
     const [elapsed, setElapsed] = useState(0);
     const inputRef = useRef();
@@ -1064,32 +1063,48 @@ const FullMapQuiz = ({ onComplete, timerEnabled, bestTime }) => {
     }, [timerEnabled, startTime]);
 
     const handleSelect = (state) => {
+        // Don't allow selecting already answered states
+        if (answeredStates.has(state.id)) return;
         setSelected(state);
-        setInput(answers[state.id] || '');
+        setInput('');
         setTimeout(() => inputRef.current?.focus(), 100);
     };
 
     const handleSubmit = () => {
         if (!selected || !input.trim()) return;
-        const isCorrect = checkAnswer(input.trim(), selected.name);
-        setAnswers(prev => ({ ...prev, [selected.id]: input.trim() }));
+        const userAnswer = input.trim();
+        const isCorrect = checkAnswer(userAnswer, selected.name);
+
+        setAnswers(prev => ({ ...prev, [selected.id]: userAnswer }));
+        setAnsweredStates(prev => new Set([...prev, selected.id]));
+
         if (isCorrect) {
             setCorrectStates(prev => new Set([...prev, selected.id]));
+        } else {
+            // Save wrong answer for later review
+            setWrongAnswers(prev => [...prev, {
+                stateId: selected.id,
+                userAnswer: userAnswer,
+                correctAnswer: selected.name
+            }]);
         }
-        setSelected(null);
+
         setInput('');
+        setSelected(null);
     };
 
     const handleCheck = () => {
-        const correctSet = new Set();
-        Object.entries(answers).forEach(([id, answer]) => {
-            const state = STATES[id];
-            if (state && checkAnswer(answer, state.name)) {
-                correctSet.add(id);
-            }
+        // Build list of correct answers for display
+        const correctAnswersList = Array.from(correctStates).map(id => ({
+            stateId: id,
+            stateName: STATES[id]?.name || id
+        }));
+        setCheckResult({
+            correct: correctStates.size,
+            total: answeredStates.size,
+            wrongAnswers,
+            correctAnswersList
         });
-        setCorrectStates(correctSet);
-        setCheckResult({ correct: correctSet.size, total: 50, correctStates: correctSet });
         setShowCheck(true);
     };
 
@@ -1097,23 +1112,16 @@ const FullMapQuiz = ({ onComplete, timerEnabled, bestTime }) => {
         setAnswers({});
         setSelected(null);
         setInput('');
+        setAnsweredStates(new Set());
         setCorrectStates(new Set());
+        setWrongAnswers([]);
     };
 
     const handleFinish = () => {
-        const correctSet = new Set();
-        Object.entries(answers).forEach(([id, answer]) => {
-            const state = STATES[id];
-            if (state && checkAnswer(answer, state.name)) {
-                correctSet.add(id);
-            }
-        });
         const isNewRecord = timerEnabled && saveBestTime('fullMap', elapsed);
-        saveToHistory('fullMap', correctSet.size, 50, timerEnabled ? elapsed : 0);
-        onComplete(correctSet.size, 50, elapsed, isNewRecord);
+        saveToHistory('fullMap', correctStates.size, 50, timerEnabled ? elapsed : 0);
+        onComplete(correctStates.size, 50, elapsed, isNewRecord);
     };
-
-    const answeredCount = Object.keys(answers).length;
 
     return (
         <div>
@@ -1126,15 +1134,22 @@ const FullMapQuiz = ({ onComplete, timerEnabled, bestTime }) => {
             )}
             <div className="progress-section">
                 <div className="progress-bar">
-                    <div className="progress-fill" style={{ width: `${(answeredCount / 50) * 100}%` }} />
+                    <div className="progress-fill" style={{ width: `${(answeredStates.size / 50) * 100}%` }} />
                 </div>
                 <div className="progress-text">
-                    <span className="score">{answeredCount}</span> / 50 states labeled
+                    <span className="score">{answeredStates.size}</span> / 50 answered
+                    {wrongAnswers.length > 0 && (
+                        <button
+                            onClick={() => setShowReview(true)}
+                            style={{marginLeft: 12, background: 'var(--warning)', color: '#000', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 12}}>
+                            📝 Review {wrongAnswers.length} mistake{wrongAnswers.length > 1 ? 's' : ''}
+                        </button>
+                    )}
                 </div>
             </div>
             <div className="map-container">
                 <USMap onSelect={handleSelect} answers={answers} selectedId={selected?.id}
-                    showResults={showCheck} correctStates={correctStates} showLabels={true} />
+                    answeredStates={answeredStates} showLabels={true} />
             </div>
             {selected && (
                 <div className="input-area">
@@ -1152,14 +1167,65 @@ const FullMapQuiz = ({ onComplete, timerEnabled, bestTime }) => {
                 <button className="check" onClick={handleCheck}>Check Score</button>
                 <button className="reset" onClick={handleReset}>Start Over</button>
             </div>
-            {answeredCount === 50 && (
+            {answeredStates.size === 50 && (
                 <button className="submit-btn" onClick={handleFinish} style={{ marginTop: 14 }}>
                     🏆 Finish Challenge!
                 </button>
             )}
             {showCheck && checkResult && (
-                <CheckResults correct={checkResult.correct} total={checkResult.total}
-                    onClose={() => setShowCheck(false)} />
+                <div className="overlay" onClick={() => setShowCheck(false)}>
+                    <div className="overlay-content" onClick={e => e.stopPropagation()} style={{maxWidth: 500}}>
+                        <h2>📊 Current Score</h2>
+                        <div className="score-display">
+                            <span className="big-score">{checkResult.correct}</span>
+                            <span className="score-label">/ {checkResult.total} correct</span>
+                        </div>
+                        <div style={{display: 'flex', gap: 16, marginTop: 16, textAlign: 'left'}}>
+                            {checkResult.correctAnswersList.length > 0 && (
+                                <div style={{flex: 1, maxHeight: 200, overflowY: 'auto'}}>
+                                    <h3 style={{marginBottom: 8, color: 'var(--success)'}}>✓ Got Right ({checkResult.correctAnswersList.length})</h3>
+                                    {checkResult.correctAnswersList.map((c, i) => (
+                                        <div key={i} style={{padding: '4px 0', color: 'var(--success)', fontSize: 14}}>
+                                            {c.stateName}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {checkResult.wrongAnswers.length > 0 && (
+                                <div style={{flex: 1, maxHeight: 200, overflowY: 'auto'}}>
+                                    <h3 style={{marginBottom: 8, color: 'var(--danger)'}}>❌ To Learn ({checkResult.wrongAnswers.length})</h3>
+                                    {checkResult.wrongAnswers.map((w, i) => (
+                                        <div key={i} style={{padding: '4px 0', fontSize: 14}}>
+                                            <div style={{color: 'var(--text-muted)'}}>{w.userAnswer} →</div>
+                                            <div style={{color: 'var(--danger)'}}>{w.correctAnswer}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <button className="submit-btn" onClick={() => setShowCheck(false)} style={{marginTop: 16}}>
+                            Got it!
+                        </button>
+                    </div>
+                </div>
+            )}
+            {showReview && (
+                <div className="overlay" onClick={() => setShowReview(false)}>
+                    <div className="overlay-content" onClick={e => e.stopPropagation()}>
+                        <h2>📝 Mistakes to Learn From</h2>
+                        <div style={{textAlign: 'left', maxHeight: 300, overflowY: 'auto'}}>
+                            {wrongAnswers.map((w, i) => (
+                                <div key={i} style={{padding: '8px 0', borderBottom: '1px solid var(--border)'}}>
+                                    <div style={{color: 'var(--danger)'}}>❌ You said: {w.userAnswer}</div>
+                                    <div style={{color: 'var(--success)'}}>✓ Correct: {w.correctAnswer}</div>
+                                </div>
+                            ))}
+                        </div>
+                        <button className="submit-btn" onClick={() => setShowReview(false)} style={{marginTop: 16}}>
+                            Got it!
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );
