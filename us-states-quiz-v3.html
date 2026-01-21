@@ -160,18 +160,39 @@
         }
         .back-btn:hover { background: var(--primary); color: #fff; }
         
-        .timer { 
-            background: var(--bg-card); 
-            padding: 10px 18px; 
-            border-radius: 10px; 
-            font-weight: 600; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        .timer {
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-weight: 700;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.3);
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
+            border: 2px solid var(--primary);
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
         }
-        .timer .current { color: var(--text); font-size: 1.1rem; }
-        .timer .best { color: var(--success); font-size: 0.9rem; }
+        .timer .current {
+            color: var(--primary);
+            font-size: 1.4rem;
+            letter-spacing: 0.5px;
+        }
+        .timer .best {
+            color: var(--success);
+            font-size: 0.95rem;
+            opacity: 0.9;
+        }
+        .timer.behind-pace {
+            border-color: var(--warning);
+            animation: timer-pulse 1s infinite;
+        }
+        .timer.behind-pace .current {
+            color: var(--warning);
+        }
+        @keyframes timer-pulse {
+            0%, 100% { box-shadow: 0 2px 12px rgba(245, 158, 11, 0.3); }
+            50% { box-shadow: 0 2px 20px rgba(245, 158, 11, 0.6); }
+        }
 
         .progress-section { margin: 12px 0; }
         .progress-bar { 
@@ -711,10 +732,11 @@ const checkAnswer = (input, correct) => {
 };
 
 const formatTime = ms => {
-    const s = Math.floor(ms / 1000);
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m}:${sec.toString().padStart(2, '0')}`;
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    const centiseconds = Math.floor((ms % 1000) / 10);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
 };
 
 const formatDate = (timestamp) => {
@@ -829,12 +851,16 @@ const ModeTitle = ({ mode }) => {
 
 // Feedback Overlay
 const FeedbackOverlay = ({ show, isCorrect, correctAnswer, onClose }) => {
+    // Use ref to avoid re-triggering effect when onClose reference changes
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
+
     useEffect(() => {
         if (show) {
-            const timer = setTimeout(onClose, 1400);
+            const timer = setTimeout(() => onCloseRef.current(), 1400);
             return () => clearTimeout(timer);
         }
-    }, [show, onClose]);
+    }, [show]); // Only depend on 'show', not onClose
 
     if (!show) return null;
     const msg = isCorrect ? GOOD_MSGS[Math.floor(Math.random() * GOOD_MSGS.length)]
@@ -1186,7 +1212,7 @@ const FullMapQuiz = ({ onComplete, timerEnabled, bestTime }) => {
         <div>
             <ModeTitle mode="fullMap" />
             {timerEnabled && (
-                <div className="timer">
+                <div className={`timer ${bestTime && elapsed > bestTime ? 'behind-pace' : ''}`}>
                     <span className="current">⏱️ {formatTime(elapsed)}</span>
                     {bestTime && <span className="best">🏆 Best: {formatTime(bestTime)}</span>}
                 </div>
@@ -1338,7 +1364,7 @@ const SingleStateQuiz = ({ onComplete, timerEnabled, bestTime }) => {
         <div>
             <ModeTitle mode="singleState" />
             {timerEnabled && (
-                <div className="timer">
+                <div className={`timer ${bestTime && elapsed > bestTime ? 'behind-pace' : ''}`}>
                     <span className="current">⏱️ {formatTime(elapsed)}</span>
                     {bestTime && <span className="best">🏆 Best: {formatTime(bestTime)}</span>}
                 </div>
@@ -1415,7 +1441,7 @@ const NameChoicesQuiz = ({ onComplete, timerEnabled, bestTime }) => {
         <div>
             <ModeTitle mode="nameChoices" />
             {timerEnabled && (
-                <div className="timer">
+                <div className={`timer ${bestTime && elapsed > bestTime ? 'behind-pace' : ''}`}>
                     <span className="current">⏱️ {formatTime(elapsed)}</span>
                     {bestTime && <span className="best">🏆 Best: {formatTime(bestTime)}</span>}
                 </div>
@@ -1492,7 +1518,7 @@ const ShapeChoicesQuiz = ({ onComplete, timerEnabled, bestTime }) => {
         <div>
             <ModeTitle mode="shapeChoices" />
             {timerEnabled && (
-                <div className="timer">
+                <div className={`timer ${bestTime && elapsed > bestTime ? 'behind-pace' : ''}`}>
                     <span className="current">⏱️ {formatTime(elapsed)}</span>
                     {bestTime && <span className="best">🏆 Best: {formatTime(bestTime)}</span>}
                 </div>
