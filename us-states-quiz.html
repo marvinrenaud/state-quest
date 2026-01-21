@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>US States Quiz 🗺️</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        #root {
+            min-height: 100vh;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes confetti {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(-100px) rotate(720deg); opacity: 0; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .animate-bounce { animation: bounce 0.5s ease; }
+        .animate-shake { animation: shake 0.5s ease; }
+        .animate-fadeIn { animation: fadeIn 0.5s ease; }
+        .animate-slideIn { animation: slideIn 0.3s ease; }
+
+        .confetti-piece {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: confetti 1s ease forwards;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .state-path {
+            transition: fill 0.3s ease, stroke 0.3s ease;
+            cursor: pointer;
+        }
+
+        .state-path:hover {
+            filter: brightness(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useMemo } = React;
+
+        // ============== STATE DATA ==============
+        const STATES_DATA = [
+            { name: "Alabama", abbr: "AL", region: "Southeast" },
+            { name: "Alaska", abbr: "AK", region: "West" },
+            { name: "Arizona", abbr: "AZ", region: "Southwest" },
+            { name: "Arkansas", abbr: "AR", region: "South" },
+            { name: "California", abbr: "CA", region: "West" },
+            { name: "Colorado", abbr: "CO", region: "West" },
+            { name: "Connecticut", abbr: "CT", region: "Northeast" },
+            { name: "Delaware", abbr: "DE", region: "Northeast" },
+            { name: "Florida", abbr: "FL", region: "Southeast" },
+            { name: "Georgia", abbr: "GA", region: "Southeast" },
+            { name: "Hawaii", abbr: "HI", region: "West" },
+            { name: "Idaho", abbr: "ID", region: "West" },
+            { name: "Illinois", abbr: "IL", region: "Midwest" },
+            { name: "Indiana", abbr: "IN", region: "Midwest" },
+            { name: "Iowa", abbr: "IA", region: "Midwest" },
+            { name: "Kansas", abbr: "KS", region: "Midwest" },
+            { name: "Kentucky", abbr: "KY", region: "Southeast" },
+            { name: "Louisiana", abbr: "LA", region: "South" },
+            { name: "Maine", abbr: "ME", region: "Northeast" },
+            { name: "Maryland", abbr: "MD", region: "Northeast" },
+            { name: "Massachusetts", abbr: "MA", region: "Northeast" },
+            { name: "Michigan", abbr: "MI", region: "Midwest" },
+            { name: "Minnesota", abbr: "MN", region: "Midwest" },
+            { name: "Mississippi", abbr: "MS", region: "South" },
+            { name: "Missouri", abbr: "MO", region: "Midwest" },
+            { name: "Montana", abbr: "MT", region: "West" },
+            { name: "Nebraska", abbr: "NE", region: "Midwest" },
+            { name: "Nevada", abbr: "NV", region: "West" },
+            { name: "New Hampshire", abbr: "NH", region: "Northeast" },
+            { name: "New Jersey", abbr: "NJ", region: "Northeast" },
+            { name: "New Mexico", abbr: "NM", region: "Southwest" },
+            { name: "New York", abbr: "NY", region: "Northeast" },
+            { name: "North Carolina", abbr: "NC", region: "Southeast" },
+            { name: "North Dakota", abbr: "ND", region: "Midwest" },
+            { name: "Ohio", abbr: "OH", region: "Midwest" },
+            { name: "Oklahoma", abbr: "OK", region: "South" },
+            { name: "Oregon", abbr: "OR", region: "West" },
+            { name: "Pennsylvania", abbr: "PA", region: "Northeast" },
+            { name: "Rhode Island", abbr: "RI", region: "Northeast" },
+            { name: "South Carolina", abbr: "SC", region: "Southeast" },
+            { name: "South Dakota", abbr: "SD", region: "Midwest" },
+            { name: "Tennessee", abbr: "TN", region: "Southeast" },
+            { name: "Texas", abbr: "TX", region: "South" },
+            { name: "Utah", abbr: "UT", region: "West" },
+            { name: "Vermont", abbr: "VT", region: "Northeast" },
+            { name: "Virginia", abbr: "VA", region: "Southeast" },
+            { name: "Washington", abbr: "WA", region: "West" },
+            { name: "West Virginia", abbr: "WV", region: "Southeast" },
+            { name: "Wisconsin", abbr: "WI", region: "Midwest" },
+            { name: "Wyoming", abbr: "WY", region: "West" }
+        ];
+
+        // Real US State SVG paths (accurate geographic outlines)
+        // These paths are derived from actual geographic data
+        const STATE_PATHS = {
+            "Alabama": "M628.6,466.4l-1.8-22.2l-1.5-15.8l-1.5-17.3l0.8-0.8l3.4-1l2.3-1l1.7-2.9l2.1-1.7l-0.2-3.1l1.9-3.2l-0.4-2.7l1.6-3.3l-0.1-2l-36.9,3.7l-23.5,2.3l0.3,3.8l1.7,15.7l1.6,13.9l1.4,17l1.5,16.2l0.5,9.4l3.6,10.1l-0.9,3.8l2.8,4l-0.3,2.5l6.3,0.1l18.5-1.4l4.6-0.2l-1-5.4l2.9-5.7l2.1-2.9l1.7-6.7l3.8-5.7l0.9-0.7",
+            "Alaska": "M158.7,573.7l-0.3-0.2l-0.2-1.1l1.3-1.4l2.6-0.4l1.5,0.8l-0.7,1.5l-2.1,0.8l-2.1,0ZM138.6,571.4l2.4-0.2l0.9,0.6l-1.3,1.2l-2.5-0.3l0.5-1.3ZM68.4,546.4l-1.7-2.2l2.5-0.6l1.4,1.2l-0.3,1.9l-1.9-0.3ZM57.4,540.3l1.7-1.6l2.5,1.4l-0.4,1.8l-2.2,0.2l-1.6-1.8ZM80.4,536.9l-2.5-0.1l-0.4-1.4l1.9-0.9l1.8,0.8l-0.8,1.6ZM40.5,532.9l1.9-0.1l1,1.4l-1.9,0.9l-1.4-0.8l0.4-1.4ZM32.4,529.9l-0.5-1.5l2.4-0.2l0.9,1.2l-1.1,1l-1.7-0.5ZM22.5,527.4l-0.4-1.7l2.1-0.5l0.8,1.6l-0.8,1l-1.7-0.4ZM2.5,519.3l1.6-0.7l1.9,1l-0.3,1.6l-2.2,0.3l-1-2.2ZM172.3,572.5l-1.9,1.9l0.2,1.3l4.6-0.7l2.4-2l-1.5-1.9l-3.8,1.4ZM191.6,555.3l-2.7,2.6l0.8,2l4.1-1l1.6-2.8l-0.9-1.8l-2.9,1Z",
+            "Arizona": "M140.3,443.5l-0.3-1.8l-35.7,5.2l-35.9,4.2l-13.7,1.3l2.7,18.1l5.3,35.2l7.4,45.2l5.9,33.3l22.9-4.1l36.9-7.8l27.9-6.5l-6.6-36.9l-1-2l1.2-2.9l-2.1-3.1l-0.2-5.7l-1.9-1.9l2.4-4.5l0.4-3.1l-3.4-5.6l2.3-4.1l-0.9-4.2l1.2-1.6l-0.4-2.3l-2.6-1.9l-0.7-2.9l-2.5-0.9l-0.9-1.7l0.3-3.9l-2.6-4.7l0.7-3.1l-1.1-3.6l0.7-2.1l-1.3-4.8",
+            "Arkansas": "M554.3,391.9l-3.4-0.3l-6.2,0.8l-42.5,1.5l-30.3,0.4l-1.9,10l-1.1,9l-0.9,6.4l1.5,7.4l-2.4,5.2l1.7,1.5l3.7,1.6l0.9,3.7l-0.1,3.2l2.6-0.4l2.8-2.3l3.3,1.4l3.6-1.4l1.1,2l-2.6,3l-0.3,2.6l3.1,1.4l-1.7,2.4l2.8,3l-2.1,2l0.3,1.8l42.6-0.5l26.6-0.9l2.4-3.1l-0.7-2.9l2.2-1.9l0.5-3.3l2.7-4.9l-3.1-1.3l0.7-3.3l-1.9-2.3l2.4-0.9l0.3-5.4l1.7-4.2l-1.1-1.7l1.6-5l-1.3-1.3l0.7-5.8l1.7-6.3l-0.2-3.7l-2.5-4.2l1.6-2.4l-0.9-2.7",
+            "California": "M61.4,329.5l-2.6,0.1l-1-2.2l-3.2-3l-1.7-7.7l-0.5-5.7l1.7-4.5l0.9-5.9l-1.5-3.1l-3.1-2.7l-0.7-3.9l2.5-4l0.3-4.3l-1.7-3.9l1-5.9l2.9-5.7l4.1-3l1.9-5.9l-0.5-4.6l3.3-5.8l4.5-7.8l3.9-3.8l0.5-2.5l4.4-4.9l1.8-1.6l-1-2l-3.9-0.5l-2.7-2.7l-1-5.3l3.1-1.1l0.7-2.9l3.6-4.7l0.1-3.4l-1.3-0.5l-1-4.6l1.6-4.1l-0.9-4l0.1-7.7l-1.7-4.5l-3.8-5.2l-1.9-5.3l0.4-4.2l-3.2-3.9l-3.9-4.9l2.9-0.8l0.1-7.5l11.9,2.9l32.8,7.9l21.7,4.5l24.2,5l0.2,0.6l-1.5,3.1l0.9,2.4l-0.1,4.4l1.9,2.7l-3.5,0.3l0.4,4.2l7.7,46.7l5.4,31.6l7.2,42l-17.7,2.9l-29,3.8l-0.1,3.9l-2.7,3.9l-0.8,3.3l1.9,2.9l-0.9,1.7l-3.2-0.2l-2.7,2l0.4,3.7l-2.7,0.9l-3,3.4l-0.7,3l-5.3,5.4l-1.9,4.7l0.4,1.7l-2.4,2.7l0.2,1.7l-2.7,1.9l-1.2,2.7l-5.3,6.2l-0.7,5.7l-1.6,2.3l0.9,3.9l3.4,3.4l-0.5,5.2l-1.5,2l1.4,4.4l-0.7,2.3l-6.2-0.2l-22.1-12.9l-6.7-4.3l-13.9-9.9l-17.5-13.3l-10.2-8.7l-2.7-4.9",
+            "Colorado": "M381.9,285.5l-54.3,3l-48.7,1.4l-41.9,0.1l-1.7,37l1.7,30.3l2.9,47.6l47.7-2.1l50.7-4.3l46.2-5.4l-0.5-35.5l-1.1-36.9l-1-35.2",
+            "Connecticut": "M852.1,185.5l-3.9-14.2l-0.9-2.7l-5.9,1.5l-24.9,5.7l1.4,6l0.6,7.2l-1.2,3l1.9,2.1l6.7-1.1l7-3.3l9.2-1.7l9.7-2.1l0.3-0.4",
+            "Delaware": "M821.4,249.2l-1.1-4.7l-1.3-5.6l-2.7-10.7l4.9-1.2l4.7-0.4l1.8,3.9l1.5,5.6l-0.3,3.7l-2.5,2.7l0.7,2.5l-0.8,1.5l2.2,3l-0.3,2.5l-4.1-0.3l-2.7-2.5",
+            "Florida": "M697.4,537.8l-0.7-5.5l-2.4-9.5l-3.7-6.5l-2.8-4l-1.9-6.7l-3.8-4.6l-1.7-2.4l-1-5.9l-4.7-6.5l-5.3-8.7l-4.9-3.7l-1.6-5.4l-1.9-4.2l0.2-1.7l-4.9-5.5l-6.4-0.1l-10.5,0.6l-49.1,4.3l-3.2,4.9l1.4,5.5l4.4,2l0.5,2.8l5.3-0.2l8.5-0.6l26.1-2.1l5.9,0.5l5.2,3l8,1.5l7.2,3.9l5,4.9l4.5,6.7l4.9,3.7l1.7,4.3l7.4,8.9l3.9,6.9l4.6,8.5l2.1,7.6l0.3,7.7l-1.5,5l2.5,6l1.9,1.7l-0.3,5.9l1.7,3.5l0.3,2.7l-2.5,4.9l-0.3,2.8l2.2,2.6l-1.6,6.3l-3.2,2.9l-1.8,3.7l-4.1,3.2l-0.3,3.5l-3.3-0.7l-2.9-3.7l-0.1-4l-1.9-0.5l-3.9,1.5l-1.9-0.5l0.9-3.1l-3.3,0.9l-4.9,4.7l-2.5,0.3l-2.2-1.9l-3.9,0.6l-3,1.9l-3.9-1.2l-3.2,0.7l-3.7-2.3l-5.7-1.7l-2.2-2.9l-3.3-0.5l-3.5-2.7l-5.2-1.5l-0.7-1.6l-3.4-1.5l-3.9,1.6l-5-3.3l-4.6-0.3l-0.7-2.9l-2.2,0.7l-1.2-1.3l3.9-2.7l6.9-3.4l3.5-2.8l5.7-1.1l3.9-1.6l2.5-3.1l4.5-0.9l2.2-2.4l0.3-2.9l6.5-6l5.5-5.1l1.2-5l-1.2-1.8l2.7-6l3.2-2.9l-0.4-3.6l3.8-5.2l0.3-7.6l2.7-2.9",
+            "Georgia": "M698.2,389.3l-3.1,0.2l-20.9,2.5l-24.9,2.6l-7.1,0.9l1.3,8.7l2.4,16.2l2.6,20.7l0.8,7.8l3.3,21.7l0.9,4.9l10.1-0.9l19-2l4.9,6.7l3.2,4.5l5,2.7l2.7,4.9l4.5,6.7l2.5,1.4l3.9,3.1l3.7-0.2l1.4-1.1l2.3,0.8l1.5-3.2l4.3-3.7l1.7-6.2l2.9-1.5l-0.4-2.6l1-2.5l3.3-3.6l2.9-5.7l-1.7-1.7l1.1-3.9l-2.1-3.2l1.7-2.9l-1.5-3.5l-1.7-3.7l-3.5-1.7l1.7-4.6l-0.2-4.7l-2.8-4l-2.1-0.5l-1.7-3.4l-2.9-7.2l-2.5-2.4l0.2-2.5l-4.2-5.7l1-4l-2.8-3.2l-0.9-3.4l1.2-3.6l-1.5-2.5l-2.5-7.6l-2.9-4.1",
+            "Hawaii": "M233.1,571.3l3.1-3.6l0.4-1.9l-1.4-2.8l-4.2,0.5l-1.7,2.9l0.2,2.3l3.6,2.6ZM248.6,560.6l5.7-2.9l1.9-3l-0.7-3.8l-2.9-0.2l-4,1.9l-2.3,4.9l2.3,3.1ZM262.9,551.2l3.3-0.9l1.8-3l-1.1-3.9l-4.6,1l-1.7,4l2.3,2.8ZM285.5,535.8l6.9-4.1l1.5-3.7l-1.9-4.9l-5.6,2.6l-2.7,5.2l1.8,4.9ZM315.7,518.5l4.6-1.1l3.7-2.9l0.3-2.9l-3.7-0.7l-5.7,2.4l-1.6,3.6l2.4,1.6ZM331.7,507.5l7.9-1.4l3.2-1.9l1.6-4.9l-4.9-2.6l-6.3,2.4l-3.4,4.1l1.9,4.3Z",
+            "Idaho": "M171.6,80.9l-2.7,10.5l3.2,6.3l-0.4,4.5l4.2,5.3l2.5,1.9l-0.7,5.2l3.9,5.5l0.5,2.9l3.2,2.5l-1.2,4.9l1.7,4.8l-0.5,2.9l-3.1,3.2l-3.4,5.9l0.4,4.1l-3.8,0.2l-3.2,6l0.9,3.4l-6.3,12.9l-4.1,3.1l0.5,6.9l-3.9,0.3l0.5,5.4l1.3,4.9l-4.3,12.3l-5.1,0.8l-2.9,1.7l-3.5-1.8l-5.9,0.5l-4.4-0.8l-7.7,2l-2.5-0.2l-0.9-3.9l-3.9-0.5l-6.7,1.5l-4.9,2.7l-1.9-0.3l-4.7,1.5l-4.5-1.3l-2.4-35.9l7.4-54.6l18.9,2.7l15.2,1.7l13.6,1.2l21.9,1.5",
+            "Illinois": "M585.4,248.1l-0.3-3.7l-1.8-2.3l-0.4-3.6l-4.2-5.2l-0.5-6.3l2.3-3.9l0.2-3.7l-2.7-3.3l-0.6-4.9l3.6-1.9l2.9-5.5l4.1-4l-0.4-2.6l-2.4-2.2l0.2-2.9l-3.9-0.6l-4.4-3.7l-6.9-12l-7.7,0.7l-7.4,0l-22.5,1.2l-0.7,4l1.9,2.6l0.5,2.9l-2.7,2.7l-0.4,3.4l2.5,5.1l-0.2,10.9l-1.9,27.9l-0.4,22.7l0.9,8.1l2.9,4.6l3.4,3.8l0.4,10.6l-2.7,2.5l-0.4,2l1.7,3.5l6.2,5.2l4.5,0.2l3.4-2.6l3.1,0.9l2.6,4.9l6.4,0.9l4.9-0.5l1.4-2.3l0.9-5.4l4.4-4.8l2.2-1l1.5-6.2l3.6-4.5l-0.3-2.9l-2.8-2.5l0.5-5.9l2.1-7.9l-0.2-5.3l1.9-3.7",
+            "Indiana": "M608.5,248.3l-0.3-2.9l0.9-2.9l3.4-3.2l0.3-3.1l-1.5-4.6l-0.5-7.9l1.9-3.9l-1.9-11.5l-1.1-7.4l-1.2-8l-0.7-6.1l-24.2,2.6l-22.7,1.5l0.2,2.9l2.4,2.2l0.4,2.6l-4.1,4l-2.9,5.5l-3.6,1.9l0.6,4.9l2.7,3.3l-0.2,3.7l-2.3,3.9l0.5,6.3l4.2,5.2l0.4,3.6l1.8,2.3l0.3,3.7l0.3,7.2l5.9-0.7l21.4-2.1l16.1-1.2l3.8-0.3",
+            "Iowa": "M525.9,199.6l0.3-4.2l3.2-3.7l0.3-3.5l-3-3l-0.5-5.7l-2.6-6.4l-0.5-3.9l0.3-2.9l-3.8-4.7l-52.7,2.9l-53.2,1.3l-1.1,5.6l3.4,6.9l4.9,4.7l1.2,4.1l-3.4,5.7l-0.5,4.5l2.4,3.5l3.1,6.9l5.2,2.5l3.7,4.5l0.7,4.7l1.9,1.5l3.7-2.9l5.4-0.5l3.2,1.5l3.3-2l5.9,0.9l3.1,3.7l14.4-0.5l44.3-2.4l8.6-0.7l0.1-3.2l2.4-3.7l-2-3.3l-2.9-1l0.2-5.5",
+            "Kansas": "M467.2,303.2l-53.3,1.4l-74.5-1.5l-0.5,36.7l0.6,20.3l58.5-0.7l57.4-2.5l26.3-1.9l-0.3-3.3l-1.7-2.4l1.3-5.2l-1.8-6.1l1.6-6.2l-0.1-6.1l-3.7-4.5l2.5-6.4l-1.3-2.6l-4-1l-1.5-3.1l-3.2-1.3l-2.3-3.6",
+            "Kentucky": "M693.4,312.5l-5.8,0.3l-12.9,1.1l-27.5,2.7l-23.6,1.6l-21.5,0.8l-9.6,0.9l0.5,3.9l-5.1,5l-4.7-0.3l-3.2,1.7l-1.4-2.6l-3.9,2l-4,5l0.9,3.7l-4.4,0.3l-2.7,4.1l-4,0.3l-2.8,3.1l-1.8-0.4l-0.2,2.2l-2.7-1.9l-5-0.7l-0.2-3.7l-2.4-0.3l-2.4,2.7l-3.7-1.4l-4.3,3.3l-3.2-2.7l-3.6,0.2l-2.1-2.7l0.9,6l-2.8,4l1.9,3.3l3.4,1.3l1.5,3.1l3.7,0.7l2.2,1.9l4.4-2.6l4.9,1.6l3.3-2.7l3.9,0.9l0.7,2.8l3.7-1.9l3.9,0.6l0.4,2.3l2.9-0.2l2.3-2.1l3.7,1.7l1.3-2.6l3.2-1l0.8-3.5l3.9-2.4l5,3.2l3.6-3.1l4.1-0.6l2.5-2.9l4.3,0.9l2.2,2.7l2.9-3.9l5.6-3.3l1.9-3.7l4.4-3.5l4.7-1.1l3.7-3.7l5.7-0.3l5-3.3l3.9,2.3l3-3l1.3,1.7l2.3-0.9l1.1-3.4l3.9-1.6l0.3-2l-2.4-2.9l4.9-4.2",
+            "Louisiana": "M555.5,504.5l-1.7-7.5l-2.9-3.5l0.3-5.3l3.7-2.9l-3.3-1.8l-1.2-4.1l2-4.7l-0.2-3.5l-23.1,0.3l-25.9,0.1l-2.7,5.4l0.6,4.9l2.7,3.1l-0.6,6.4l-2.9-3l-2.9,0.8l-1.7,4.3l-3,1.9l3.7,5.5l0.7,7.5l3.7,3.7l-0.5,6.8l-2.3,4.2l1.4,2.9l-0.7,3.7l4.2,2.5l-1.9,3.3l6.9,0.2l10.7,1.7l10.2,0.7l0.7,3l5.9,0.7l2.7-2.5l3.8,2.2l-1,3.6l2.6,1.7l4.7-2.7l1.1-3l2.6,1.3l-0.9,3.8l4.3,1l0.6-2.3l-2.8-1.7l-0.1-2.9l4-1.9l2.9,3.2l2,0.2l1.2-2.6l2.6-0.2l0.7,2.7l3.4,1l2.3-1.7l-1.4-2.3l0.9-1.7l-3.3-4l3.3-1.3l-0.9-2.9l2.3-0.2l0.2-2.1l-2.7-3.4l6.4-5.4l-6.2-2.9l-7-1.7l-6.3-1.4l-2.9-4.9",
+            "Maine": "M884.6,68.4l1.8-2.4l1.5-4.7l-2.2-5.9l-1.7,0.3l-1.1,3.1l0.1,4.2l-1.9,4l3.5,1.4ZM852.9,119.5l2.2-2.2l3.4-0.7l3.2-2.5l1.9-2.6l-0.9-2.2l-1.7,0.4l-2.2,2.9l-2.6,0.9l-2.9,2.2l-0.9,2.9l0.5,0.9ZM833.2,53.6l5.4,1.9l3.9,0.2l1.8-1.7l3.3,2.2l3.9,0.9l0.7,3.9l2.2,0.5l0.2-3.6l1.5-0.9l2.9,1.4l-0.3,2.8l3.3,3.9l1.7,5.7l3.1,6.3l-0.7,2l-2.4-0.6l-0.3,3.1l-1.6,0.5l-1,4.8l-2.6,3.4l-4.1,8.1l-3.9,3.1l-1.6-0.2l-2.1,1.8l-2.7-3.3l-0.5-5.2l-5.5-3.5l-1.4-4.2l0.9-2.7l-2.2-4.3l-3.2-4.1l-2.9-0.6l-2,3l-2.2-0.5l-3.9-5.4l-4.2,0.4l-1.5-0.7l-2.2-4.2l-4.7-9.2l2.4-2.1l2.7,0.4l2.8-3.2l1.5-3.5l2.3,0.3l1.9-2.4l5.7,1.2l1.4,5.8l5.9,2.3",
+            "Maryland": "M822.6,249.5l-3.7-8.4l-3.8-4.2l-0.7-4.7l-5.9,1.3l-6.4,0.4l-2.3-3.6l-1.1-3.2l-3.6-0.2l-8.9,2.1l-26.6,5.7l-17.2,3.1l0.9,4.3l-4.9-4.4l-2.9,3.2l-1.7,5l1.7,5.9l3.7,0.9l3.2,2.1l2.7-1.7l2.7-4.7l2.9,0.9l3.4-0.2l1.9-3.9l2.5-1.3l2.4,5.9l4.2-0.4l2.5-2.5l4.9,2.6l-2.1,4.5l0.8,4.1l3.3,2.4l3.5-0.9l4-4.6l1.3,5.9l1.9,1.2l2.5-1l-0.4-4.3l-3.7-3.7l-1-2.9l0.5-3.6l4.6,3.9l2.7,0.7l1.5,3.4l4.4,1.9l2.3-0.7l2.4,2.2l2.9-1.5l2.5,3.7l4.1-0.9l3.6-2.3",
+            "Massachusetts": "M878.9,164.9l0.5-2l-2.9-0.8l-0.4-3.9l-2.8-0.2l0.9,4.4l4.7,2.5ZM867.9,164.9l2.7-1.3l0.9-1.6l-3.2-0.2l-1.6,1.7l1.2,1.4ZM852.1,185.5l1.9-1.7l2.8-0.7l3.9-3.4l3.9,0.6l4.6-2.5l-2.1-1.9l0.3-2.4l-3.7-0.3l-0.2-2.9l-3.8,1.7l-0.8,2.3l-3.5-0.2l-4.3,0.6l-11.7,2.9l-21.2,5.4l-5.9,1.5l0.9,2.7l3.9,14.2l5.6-1.5l5.7-1.5l3.3-1.5l0.9-3.3l3.4-1.9l2.5,2.9l3.9-0.7l1.9-4.2l4.5-1l1-2.6l3.5,0.7l2.7-2.2",
+            "Michigan": "M627.2,108.3l1.3-2.3l3.1-1.9l5.4-0.9l1.9-1.5l0.5-1.9l4.4-0.2l-1.1,3.5l1.1,1.6l-0.4,1.7l-3.7,1.1l-2.9,2.6l-1.4,3.9l-2.8,3.1l-2.6,0.5l-1.7-0.7l-1.8-2.6l-2.4-1.6l0.5-2l2.6-2.4ZM547.1,148.7l3-5.2l3.4-4.1l3-1.9l3.5-3.9l-0.4-7.5l0.9-3.4l0.5-4.6l-0.7-5.7l-3-4.9l-1.1-5.3l-2-2.7l-3.8-0.8l-0.7-4l-1.9-0.4l-7.9,2.6l-3.2,4.5l-0.6,5.3l2.9,2.5l-1.3,1.4l-4.9,0.7l-1.3,2.2l0.5,2.9l-2.1,0.2l-3.5,3.9l-2.9-0.2l0.3-1.9l2.1-2.4l0.3-3.5l1.2-4.3l-0.4-2.9l-1.7-0.2l-4.1,4.1l-2.6,4.6l-2.4,1.5l-2.5,3.9l-0.4,4.7l-5.6,1.4l-2.3-0.4l-0.5-1.5l4.4-2.1l0.6-4.4l1.3-2.6l-0.5-3.4l-2.9-0.9l-4,0.9l-3.4,1.9l-2.4-0.6l-3.2,1.3l-1.1,2.1l-2.3-0.5l-0.6,3l-5.2,0.7l-0.8,4.9l-2.7,0.7l-1.7-0.5l-1.7-6l-2.5-3.9l-1.5,1.3l0.7,4.5l-1.9,0.9l-2.1-2.1l-2.1,1.4l0.5,4.9l3.2,1.2l0.9,5.6l3.7,1.7l1.7,3.5l-0.3,4.2l1.9,1.6l2.5-2.7l5.4-0.7l0.7,1.5l-3.2,4.3l-0.2,2.7l0.9,0.9l4.5-3l6-1.5l2.3,2l2.8,0.2l5-3.5l5.7-1.1l4.5,1.5l8.9,1.9l4.7,2.1l10.6,1.5l1.5,1.2",
+            "Minnesota": "M530.4,76.9l-0.3,7.5l-3.6,2.7l-0.5,7.6l2.4,5.1l3.4,2.2l2.5,6.4l0.7,18.6l0.6,8.7l2.7,5.3l1.2,4.9l-0.3,5.1l-0.3,3.2l-2,3.9l-0.8,5.2l3,3.9l0.5,3.4l52.7-2.9l-0.3-34.9l-3.3-4l-4.9-3.1l-1.4-7.5l-0.1-8.9l1.8-2.1l-0.9-3.7l-4.7-3.3l-0.7-8.6l-3.7-3.1l-0.4-4.9l-5.2,0.4l-5.4,2l-3.9-0.2l-0.8-2.5l-4.9-0.5l-6.1,2.1l-2.9-4.5l-4.9,0.7l-2.2-1.5l-0.5-4.2l-3.2-1.1l-1.1,3.6",
+            "Mississippi": "M596.9,485.5l-3.9-0.3l-26.9,1.7l-25.8,1l-2.7,5.4l0.6,4.9l2.7,3.1l-0.6,6.4l-2.9-3l-2.9,0.8l-1.7,4.3l-3,1.9l3.7,5.5l0.7,7.5l3.7,3.7l-0.5,6.8l-2.3,4.2l1.4,2.9l-0.7,3.7l4.2,2.5l27-1.3l3.3-0.2l3.3,4.9l6.3,1.4l7,1.7l1-12.8l2.1-30.6l1.9-14.7",
+            "Missouri": "M556.6,297.7l-0.9-2.7l-0.7-3.5l-57.4,2.5l-58.5,0.7l-0.9,6.9l1.9,4.9l4.1,3.9l4.5,3.5l5.3,1.5l1.5,2.5l0.9,3.5l3.9,4l1.7,4.5l5.4,4.7l0.2,3.7l-3.5,3.2l-0.7,4l2.7,3.9l2.5,2.5l7.1-0.2l40.6-1.2l21.9-0.5l-0.7-5l2.5-2.9l-0.7-3.2l3.3-5.9l4.7-4.2l3.2-1.9l-0.2-2.9l-3.9-4l-0.2-3.7l4.9-8.3l1.7-2.1l1.9-6.7l-0.2-3.1l3.2-2.7",
+            "Montana": "M296.9,65.2l-0.6,17l1.2,19.6l1.7,22.5l1.4,21.5l-45.6-2.6l-45.5-4.7l-36.1-5.7l-7.4,54.6l-11.9-1.7l-1.2-3.9l-3.5-0.9l-1.2-2l-2.3,0.3l-1.6,1.5l-2.6-1.5l-0.9-2.5l-3.6,0.4l-3.7-6.9l-0.7-1.3l-4.9-0.5l-1.6-4.1l-3.6-0.3l-1.9-2.2l0.3-2.9l-2-2.3l-0.4-4.7l-3.4-3.1l0.3-5l-6.9-12.1l-2.5,0.3l-2.1-1.7l1.2-4.6l-1.7-2.7l-0.1-4.6l-4-2.4l-0.2-1.4l0.7-3.5l-2.9-2l-1.1-3.3l2.1-3.8l-0.9-2.4l2-2.7l58.7,9.1l51.7,5.9l51.7,3.9",
+            "Nebraska": "M415.3,205.8l-52.8,0.9l-66.9-2l-1.7,37.1l48.7-1.4l54.3-3l18.9-1.5l0.3-11.9l-1-18.2",
+            "Nevada": "M140.2,184.9l-25.5,87.6l-7.7,26.9l-13.8,44.2l29,3.8l17.7-2.9l-7.2-42l-5.4-31.6l-7.7-46.7l-0.4-4.2l3.5-0.3l-1.9-2.7l0.1-4.4l-0.9-2.4l1.5-3.1l-0.2-0.6l-24.2-5l17.7-16.7",
+            "New Hampshire": "M868.9,94.1l-0.4-3.2l-3.1-0.5l-0.6-3.2l-2.9-6l1.9-3.5l-0.4-4l-0.9-5l-3.2-1.9l-1.4,5.5l-5.7-1.2l-1.9,2.4l-2.3-0.3l0.2,3.6l-1.1,4.4l1.7,3.7l-0.4,5.7l-1.2,9.3l0.9,3.9l-1.7,2.4l0.7,5.4l-0.5,4.1l1.5,3.1l0.2,7.5l-3.2,1.3l-0.4,2.8l4.2,0.9l7.6-2.2l1.8-2.5l0.9-5.1l2.5-3l0.4-4.5l2.3-7.2l3.9-7.6l-0.3-3.5l1.9-1.7l0.5-5.2",
+            "New Jersey": "M823.9,199.6l-3.3-3.5l-2.3,1.5l-2.7,4.7l-0.9,3.2l1.7,2.4l-2.2,2.6l-0.2,4.2l2.5,2.2l-0.3,5.6l1.1,4.5l2.3,2.7l2.4,5.7l4.9,5.2l4.6,1.9l3.2-0.7l2.4-3.9l0.9-2.2l-0.9-3.7l-2.6-1.9l-0.9-3.9l-3.7-2.6l-0.7-5.2l-1.4-5.4l0.5-3.5l-2.9-5.2l-1.5-1.7",
+            "New Mexico": "M274.6,396.9l-6.3-53.1l-8.4-57l21.9-2.9l39.1-6.1l36.5-6.8l3.9,20.9l4.9,29.2l5.1,34.9l3.4,21l-41,4.5l-44.4,3.2l-3.8-2.8l0.3-3.2l-5.7-1.9l-5.5,0.5l0.1,18.6",
+            "New York": "M848.1,167.3l-3.9,3.4l-3.9-0.6l-4.6,2.5l-2.8,0.7l-1.9,1.7l-5.6,1.5l-5.7,1.5l-5.6,1.5l-11.7,2.9l-19.6,4.5l-14.2,3.1l-2.5-10l-0.7-1.5l-1.6,0.9l-2.6,3.7l-5.4,2.6l-3.9,0.6l-5.9,2.7l-7.2,2.1l-0.5,2l2.1,4.5l-3.5,3.1l-4.5,2.1l-6.9,1.3l-7.4-0.5l-5.7,2.2l-5.2,4.5l-2.3,5.5l-1.3,4.7l0.2,3.9l3.4,2l2.2-0.4l3.7-3.2l2.5,1.3l11.4-1.1l29.5-5.5l4.9-1l5.7-3.3l4.1-4.5l4.9-4.2l3.9-1.8l4.8,1.7l3.4-2.3l3.3-2.3l-0.3-4.2l1.9-1.9l0.3-3.5l4.7,1.9l2.4-2.2l-1.7-1.6l2.9-2.9l0.8-2.7l5.6-4.4l2.9,0.3l1.1,3.5l2.9-0.3l1.1-1.5l5.5-2.7l3.8,1.6l4.3-3.7l1.4-3.5l3.2-1.3l-0.2-7.5l-1.5-3.1l0.5-4.1l-0.7-5.4l1.7-2.4",
+            "North Carolina": "M825.9,323.9l-9.6,1.6l-21.9,3.4l-36.9,5.5l-24.4,2.6l-17.6,2.3l-16.7,1l0.4,4.1l-4,5.2l0.2,4l3.9,2.5l1.4,2.9l-0.6,6.5l3.5,4.7l5.1-0.5l3.7-2.5l3.5,0.5l2.5-4l4.7-3.2l3.9-1.7l1-3.6l4.9-0.5l3.7-2.9l6.5-1l3.2-3.2l4.4-0.2l0.9-1.5l4.2,0.2l4.5-2.9l5.5-1l2.7-1.5l8.4,3.2l4.2-2.4l4.2-4.2l7.6-0.2l5.2,1.4l4.2,2.1l2.4-0.2l1.7-6.5l3.2-4.5l3.4-0.7",
+            "North Dakota": "M412.2,76.9l-1,18.7l-0.9,15.3l0.5,14.8l0.4,10.9l-51.7-2.5l-51.7-3.9l-11.2-1.5l1.4-21.5l-1.7-22.5l-1.2-19.6l0.6-17l52.3,2.9l63.2,2.9",
+            "Ohio": "M679.9,217.3l-2.4,1.7l-5.3,2.7l-4.3,4.2l-4.2,6.5l-3.8,3l-4.2,1.1l-3.7-0.9l-2.9,0.2l-2.5,2.5l-4.3-2.5l-4.2-0.4l-3.7-2.6l-0.9,2.9l0.3,2.9l-3.8,0.3l-16.1,1.2l-21.4,2.1l-5.9,0.7l1.1,7.5l3.3,14.8l2.1,13.3l2.3,16.5l1.6,8.7l2.7,5.1l3.9,1.5l1.9-3.7l3.5,0.7l2.2,2.3l2.5-0.3l4.4-2.1l3.3,2.3l1.7-3.7l4.2,0.2l3.5-1.2l5.2,1.8l2.6-2.9l1.5,1.9l1.9-0.5l1.9-3.9l2.5,1.5l3.2,0.4l1.9-2.7l2.9,2.5l3.5-3.4l4.9-0.3l3.9-3.9l2.9,0.8l0.2-5.5l1.3-3.7l3.2-2.9l0.1-6.9l3.5-6.4l-0.7-1.7l2.2-7.7l3.2-3.5l1-5.9l-1.9-2.9l1.7-4.5l-4.5-0.7",
+            "Oklahoma": "M460.7,356.1l-61.9,1.3l-55.9,0l0.3,11.2l-2.9,5.7l-2.1,1.5l1.5,3.7l1.3,4.5l2.6,2.3l-0.2,2.7l4.5,0l-0.5,3.2l1.3,0.2l0.5-2.9l2.2,0.7l0.7,3.6l1.5-2l1.9,2.5l-0.2,2.9l2.2,1.7l1.7-2.9l2.5,0.9l1,2.1l0.9-2l2.4,1.7l-0.9,2l3.2,1.4l2.5-3.2l2.2,1.4l0.2,2.7l1.5,0.2l1.7-2.4l1.9,2.4l3.3-0.2l1.3,1.9l2.2-1.7l-0.2-2.4l2.9-0.3l2.4,1.9l1-1.9l2.7,0.5l0.9-2.7l3.2,1.2l1.5-1.2l-0.5-2.7l3.5-0.7l0.3,3l3.6-0.4l1-3.3l1.9,1l1.2-1.5l-0.2-3.5l3.5,0.9l1.9-2.2l0.9,1.5l3.5-1.5l0.2,2.4l4.4-0.2l1.5,2.1l2.4-2.6l2.3,0.7l-0.2-2.4l2-2.1l-0.9-1.7l3.4-0.7l1.7,2.4l1.4-3.1l3.7-0.5l2.4,1.2l2.9-2.6l0.2-11.5l25.2-0.7l27.2-1.7l-1.7-14.8l-0.9-9.9",
+            "Oregon": "M122.5,168.2l-17.7,16.7l-21.7-4.5l-32.8-7.9l-11.9-2.9l-2.6,9.2l-3.9,7.6l0.6,3.5l-3.9,5.3l-4.9,2.9l-0.7,6.3l-3.6,6.5l1,4.7l-0.5,6.5l-3.9,0.7l0.8,6.3l35.9-4.2l35.7-5.2l25.5-87.6",
+            "Pennsylvania": "M815.9,192.8l-2.1-11.2l-3.2-15.7l-24.6,5.1l-51.9,9.9l-6.1,0.9l2.4,6.3l0.7,3.9l1.9,1.3l0.7,6.9l5,4.9l3.7-0.5l2.5-2.9l2.5,0.9l5.4-0.5l4.9,3.1l3.2-0.2l3.2-3.5l2.5,0.5l3,2.9l4.5-3.5l5.1,3.6l4.4-2.7l5.2,3.2l4.7-2.6l3.5,0.3l4.4-2l2.7,0.7l1.5,1.5l4.2-2l3.4,0.9l2.4-1.5l3.3,3.5",
+            "Rhode Island": "M869.9,177.6l-1.5-6.4l-0.7-4.2l-6.7,1.9l1,3.1l3.2,6.6l3.7,1l1-2",
+            "South Carolina": "M739.6,386.4l-3.9-2.6l-3.7,0.9l-4.5-2.1l-3.9,1.7l-4.5-1.1l-4,1.9l-2.5-1.5l-1.9,1.5l-1.9-0.7l-2.8,2.9l-3.2-1.9l-3.4,0.2l0.4,4.1l-4,5.2l0.2,4l3.9,2.5l1.4,2.9l-0.6,6.5l3.5,4.7l5.1-0.5l3.7-2.5l3.5,0.5l2.5-4l4.7-3.2l3.9-1.7l1-3.6l4.9-0.5l3.7-2.9l6.5-1l3.2-3.2l4.4-0.2l0.9-1.5l-2.3-5.9l-7.2-0.8l-6.5-3.5",
+            "South Dakota": "M412.7,136.5l-0.4-10.9l-0.5-14.8l0.9-15.3l1-18.7l-52.7-0.5l-66.1-2.9l-1.1,37.4l66.9,2l52.8-0.9l0.2,3.7l-0.3,3.5l-2.5,3.7l-0.3,4.9l-3.3,7.9l-0.7,4.7l6.2-0.3",
+            "Tennessee": "M693.8,341.8l-12.9,1.1l-27.5,2.7l-23.6,1.6l-21.5,0.8l-21.2,1.1l-28.9,1.5l-6.1,5.3l-5.9,0.2l-5.4,3.7l0.5,2.1l6.2,0.8l-0.4,2.7l-4.9,3.7l-3.4,3.7l-5.5,2.2l-1.5,3.6l-5.2,4.9l-2.4,2.5l2,3.4l42.7-3.6l11.3-1.2l16.9-1.7l35.3-4l2.4-0.5l0.1-4.2l4.9-0.5l2.5-3.5l3.4-1.2l2.2,0.5l0.5-3.3l5.7-1.9l3.3-2.5l2.7,0.3l3.1-4.5l3.4-0.2l3.4-2.9l7.2-0.9l2.4-3.6l3.9-3l3.5-3.9l2.9-0.3l-0.4-4.1",
+            "Texas": "M455.8,544l-0.5-3.2l-2.9-5l-1.1-4.2l-2.6-3.5l0.4-2.8l-1.7-6.5l-2.5-3.6l-2.9-1.9l-0.6-4.1l-0.4-5.7l-0.8-2.9l-1.7-1.5l0.7-4.5l-1.5-1.6l-0.9-3.3l-2.5-3.2l-1.9-1.1l0.2-3.9l-1.1-2.9l0.2-3.7l-2.3-2.5l0.3-2.1l-5.3-6.7l-2.5-1.7l-1.5-3.7l-4.5-3.3l-6.6-11.6l-2.6-1.2l-6.9-4.4l-5.1-1.7l-4.7-0.7l-2.6-3.3l-6.9-2.5l-6.2-1.4l-2.5-3.2l-3.3-0.5l-2.8-6l-3.9-0.2l-1.3-3.4l-3.6-3.3l-0.7-4.9l0.9-7.2l-2.7-0.5l-5.1,2.3l-3.3,4.7l-0.3,3.5l-3.7,6.5l-3.4,0.2l-3.3,2.5l-6.4,2.9l-2.2,3.9l-5.9,5.6l-2.9,1.5l-0.9,2.5l-5.2,3l-6.9,1.4l-7.3,5.1l-5.6,1.6l-1.1,1.9l-4.9,1.9l-2.1,2.1l-0.3,3.4l-5.8,0.2l-6.9,4.4l-4.7,4.7l-1.9,5.5l0.9,2l-3.5,1l-4.9,5.9l0.4,2l-2.4,5.2l-0.4,4.9l2.3,2.4l-0.7,6.2l-3.5,6.5l1.2,3l-0.7,4l0.5,4.4l2.7,3.1l-0.3,3.9l1.6,3.1l-2,5.4l1.3,4.3l2.1,2l-0.9,2.1l1.9,3.4l2.4,0.2l1.7,5.1l3.5,3.1l0.5,2.6l3.1,0.7l3.4,3.3l2.2-0.5l2.9,1.5l1.6,3.6l3.9,0.5l2.5,2.4l2.8-1.5l4.9,1.7l5.7-2.2l2.4,0.7l3,3.9l2.5-1.5l1.1,1.4l-1.5,5.7l1.7,1.6l-1.5,2.1l0.5,1.4l2.2-1.5l2.6,3.2l4.1,1.2l4.6,3.2l5.4,0.4l1.4,2.8l4.2,0.3l4.1,2.1l2.2,3.3l1.7,4.2l4.9-2.8l8.2-2.7l3.4-1.7l5.3-1.2l6.2-4.3l3.9-1.9l3.2-2.9l5.3-2.6l7.9-6.6l4.4-3.7l3.4-4l3.9-2.5l0.4-2.9l1.7-3.4l-0.3-3.5l-2.3-1.7l1.5-6.4l2.4-1.7l-0.9-1.2l1.2-6.1l2.3-2l1.5-4.9l2.4-1.3l2-4.3l0.8-5.9",
+            "Utah": "M236.3,284.8l-36.5,6.8l-39.1,6.1l-21.9,2.9l7.7-26.9l25.5-87.6l-0.2-0.6l24.2,5l21.7,4.5l32.8,7.9l-4.4,35.4l-9.8,52.5",
+            "Vermont": "M843.4,93.7l-5.9-2.3l-1.4-5.8l-5.7-1.2l-2.8,3.2l-2.7-0.4l-2.4,2.1l-0.6,7.6l0.7,2.4l-3.5,5.5l0.1,6.9l-0.7,7.9l2,3.7l-0.2,7.1l-0.1,9.9l2.3,0.1l0.3-2.5l3.6-1l0.3-3.2l4.5-1.2l0.5-2.9l4.8-5.9l0.9-4.3l5.5-2.1l-0.7-5.8l-0.5-5.9l0.9-4.7l1.3-4.2l-0.2-4.9",
+            "Virginia": "M809.4,297.7l-1.4-1.2l-2.5,0.4l-2.5-2.9l1.4-1.4l1.2-3.8l-1.5-4l-3-2.6l-0.7-3.4l-2.8-3l-2.5-1.4l-3.9,4.9l0.2,3.9l-3.5,0l-5.9-0.5l-5.9,2.4l-5.8,0.4l-6.5,4.2l-5.2-0.5l-5.2,0.9l-3.9,3.6l-4.7,0.9l-3.4,2.7l-2.9-1.7l-2.7,0.7l-1.7,2.7l-8.4,0.9l-9.7,1.9l-21.9,2.7l-23.7,2.5l2.6,8.5l8.9-0.4l21.2-1.1l21.5-0.8l23.6-1.6l27.5-2.7l12.9-1.1l5.8-0.3l1.3,1.7l1.4-1.4l0.2-3.9l4.7,1.5l1.9-1.7l4.5,1.5",
+            "Washington": "M131.7,27.8l-3.2-0.9l-5.5,0.8l-5.9-0.6l-4.2,1.3l-6.2-0.4l-2.3,0.5l-1.5,2.9l-5.5,0.2l-1.5,4.3l0.5,4.1l2.1,2.5l0.2,3.5l0.7,5.5l2.2,0.3l1.9,3.1l2.7-0.2l3.3,2.7l4.4,0.7l1.5,2.9l-0.9,3.5l2.5,2.9l-0.4,2l-1.9-0.2l-3.9-3.4l-1.1,0.9l0.9,3.7l-3.2,0.3l-0.7-2.7l-1.5,0.9l-0.1,2.7l2.4,1.4l-1.5,3.7l1.9,4.3l-4.6,1.9l2.5,3.7l35.9,7.8l44.6,8.2l-7.4-54.5l-36.1-5.7l-18.3-4.4l-3.6,1l-1.4-9.9",
+            "West Virginia": "M741.5,241.9l-0.7-4.9l-3.5-4.3l-0.7-6.2l0.8-5.7l-1.9-5l-3.6,0.3l-3.9,2.5l-2.4,3.1l-3.5-0.4l-3.9-4.4l-2.6-0.7l-1.9,1l0.8,5.5l-1.9,6.6l-3.5,1.7l-3.5,4.2l-1.9,0.7l-0.9-4.3l-3.1,3.6l-1.7,3.4l0.3,5.2l-4.6,8l-3.3,3.9l0.6,3.3l-1.5,3.3l2.7,3.3l3.5-0.7l4.7-5.5l0.9-2.4l3.1-1.7l1.5,1.5l-0.3,3.5l3.2,1.9l2.3-4.7l3.1-2.5l0.5,3.5l2.7-0.7l2.9,1.7l3.4-2.7l4.7-0.9l3.9-3.6l5.2-0.9l-1.1-3.9l2.7-0.4l0.8-2.6l3.9-2.3",
+            "Wisconsin": "M558.5,110.9l1.1-2.9l3.3-4.3l1.1-3.6l-1.5-3.9l-0.1-5.6l-2.1-6.4l-2.2-1.4l-0.3-1.9l1.1-2.6l-0.6-4.4l-2.1-1.9l1.4-3.9l-1-4.7l-1.4,0.5l-2.3,2.7l-3.4,3.7l-0.9,3.7l-2.9,0.5l-0.3,3.4l-3.8,4l-0.9-0.9l0.2-2.7l3.2-4.3l-0.7-1.5l-5.4,0.7l-2.5,2.7l-1.9-1.6l0.3-4.2l-1.7-3.5l-3.7-1.7l-0.9-5.6l-3.2-1.2l-0.5-4.9l-0.7-4.5l-0.6-8.7l-0.7-18.6l-2.5-6.4l-3.4-2.2l-2.4-5.1l-3.9,0.9l-4.3,1.3l-1.7,3.7l-4.6,3.2l-1.9,3.6l-0.2,5.4l1.9,3.9l2.3,2l-0.4,3.4l3.1,2.2l-0.7,5.4l0.3,3.4l-0.6,4l-2.5,6.1l0.9,2.5l-0.8,2.9l-1.3-0.3l-0.8-2.5l-1.9,1.9l1.2,4.3l-0.9,6.3l2.7,1.5l2.4-0.6l0.5,17.5l1.7,12.3l1.5,10.3l3.4,4l2.9,1.3l2.5-0.5l4.9-2.5l8.6-1.5l2.2-1.9l6.4-2.2l2.9,0.7l5.2-3.6l2.3,0.4l5.6-1.4",
+            "Wyoming": "M296.2,145.7l1.7,22.9l2.5,29.7l-47.7,2.1l-50.7,4.3l-46.2,5.4l-4.4,35.4l47.9-7.9l35-5.1l53.4-5.9l7.1-62.9l2.2-18.2l-0.8-0.3"
+        };
+
+        // ============== UTILITY FUNCTIONS ==============
+        const shuffle = (array) => {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        };
+
+        const getRandomStates = (excludeName, count = 2) => {
+            const others = STATES_DATA.filter(s => s.name !== excludeName);
+            return shuffle(others).slice(0, count);
+        };
+
+        // Fuzzy matching for misspellings
+        const levenshteinDistance = (str1, str2) => {
+            const s1 = str1.toLowerCase();
+            const s2 = str2.toLowerCase();
+            if (s1 === s2) return 0;
+            if (s1.length === 0) return s2.length;
+            if (s2.length === 0) return s1.length;
+            const matrix = [];
+            for (let i = 0; i <= s2.length; i++) matrix[i] = [i];
+            for (let j = 0; j <= s1.length; j++) matrix[0][j] = j;
+            for (let i = 1; i <= s2.length; i++) {
+                for (let j = 1; j <= s1.length; j++) {
+                    if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j] + 1);
+                    }
+                }
+            }
+            return matrix[s2.length][s1.length];
+        };
+
+        const isMatchingAnswer = (input, correctName) => {
+            const cleanInput = input.trim().toLowerCase();
+            const cleanCorrect = correctName.toLowerCase();
+            if (cleanInput === cleanCorrect) return { match: true, exact: true };
+            const state = STATES_DATA.find(s => s.name === correctName);
+            if (state && cleanInput === state.abbr.toLowerCase()) return { match: true, exact: true };
+            const maxErrors = correctName.length > 8 ? 2 : 1;
+            const distance = levenshteinDistance(cleanInput, cleanCorrect);
+            if (distance <= maxErrors) return { match: true, exact: false, distance };
+            const parts = correctName.split(' ');
+            if (parts.length > 1) {
+                for (const part of parts) {
+                    if (levenshteinDistance(cleanInput, part.toLowerCase()) <= 1) {
+                        return { match: false, closeMatch: part };
+                    }
+                }
+            }
+            return { match: false };
+        };
+
+        // ============== STORAGE ==============
+        const loadProgress = () => {
+            try {
+                const saved = localStorage.getItem('usStatesProgress');
+                return saved ? JSON.parse(saved) : {};
+            } catch { return {}; }
+        };
+
+        const saveProgress = (progress) => {
+            try {
+                localStorage.setItem('usStatesProgress', JSON.stringify(progress));
+            } catch (e) { console.warn('Could not save progress'); }
+        };
+
+        // ============== COMPONENTS ==============
+        const Confetti = ({ show }) => {
+            const [particles, setParticles] = useState([]);
+            useEffect(() => {
+                if (show) {
+                    const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#fd79a8', '#a29bfe'];
+                    const newParticles = Array.from({ length: 30 }, (_, i) => ({
+                        id: i, left: Math.random() * 100, color: colors[Math.floor(Math.random() * colors.length)], delay: Math.random() * 0.5
+                    }));
+                    setParticles(newParticles);
+                    setTimeout(() => setParticles([]), 1500);
+                }
+            }, [show]);
+            return (<>{particles.map(p => (<div key={p.id} className="confetti-piece" style={{ left: `${p.left}%`, top: '50%', backgroundColor: p.color, animationDelay: `${p.delay}s` }}/>))}</>);
+        };
+
+        const StarRating = ({ level, size = 20 }) => (
+            <div style={{ display: 'flex', gap: 2 }}>
+                {[1, 2, 3, 4, 5].map(i => (
+                    <span key={i} style={{ fontSize: size, color: i <= level ? '#ffd700' : '#ddd', textShadow: i <= level ? '0 0 5px rgba(255, 215, 0, 0.5)' : 'none' }}>★</span>
+                ))}
+            </div>
+        );
+
+        // Single state shape for quiz modes
+        const StateShape = ({ stateName, size = 150, color = "#4ecdc4", onClick, selected }) => {
+            const path = STATE_PATHS[stateName];
+            if (!path) return null;
+
+            return (
+                <div onClick={onClick} style={{
+                    cursor: onClick ? 'pointer' : 'default',
+                    padding: 15,
+                    borderRadius: 20,
+                    backgroundColor: selected ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)',
+                    border: selected ? '4px solid #fff' : '4px solid transparent',
+                    transition: 'all 0.3s ease'
+                }}>
+                    <svg width={size} height={size} viewBox="0 0 900 600" preserveAspectRatio="xMidYMid meet">
+                        <path d={path} fill={color} stroke="#fff" strokeWidth="2" style={{ filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.3))' }}/>
+                    </svg>
+                </div>
+            );
+        };
+
+        // Full US Map with all states
+        const USMap = ({ onStateClick, answeredStates = {}, currentState }) => {
+            const getStateColor = (name) => {
+                const answered = answeredStates[name];
+                if (answered === 'correct') return '#2ecc71';
+                if (answered === 'incorrect') return '#e74c3c';
+                if (answered === 'skipped') return '#95a5a6';
+                if (name === currentState) return '#9b59b6';
+                return '#4ecdc4';
+            };
+
+            return (
+                <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 20, padding: 10, overflow: 'auto', maxWidth: '100%' }}>
+                    <svg viewBox="0 0 900 600" style={{ width: '100%', maxWidth: 700, height: 'auto' }}>
+                        {STATES_DATA.map(state => {
+                            const path = STATE_PATHS[state.name];
+                            if (!path) return null;
+                            const fillColor = getStateColor(state.name);
+                            const isCurrent = state.name === currentState;
+                            return (
+                                <path
+                                    key={state.name}
+                                    d={path}
+                                    className="state-path"
+                                    fill={fillColor}
+                                    stroke={isCurrent ? '#fff' : '#ffffff80'}
+                                    strokeWidth={isCurrent ? 3 : 1}
+                                    onClick={() => onStateClick && onStateClick(state.name)}
+                                    style={{ filter: isCurrent ? 'drop-shadow(0 0 10px rgba(155, 89, 182, 0.8))' : 'none' }}
+                                />
+                            );
+                        })}
+                    </svg>
+                </div>
+            );
+        };
+
+        const Button = ({ children, onClick, variant = 'primary', size = 'medium', disabled = false, style = {} }) => {
+            const baseStyles = { border: 'none', borderRadius: 15, fontWeight: 'bold', cursor: disabled ? 'not-allowed' : 'pointer', transition: 'all 0.3s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: disabled ? 0.5 : 1 };
+            const variants = { primary: { backgroundColor: '#4ecdc4', color: '#fff' }, secondary: { backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff' }, success: { backgroundColor: '#2ecc71', color: '#fff' }, danger: { backgroundColor: '#e74c3c', color: '#fff' }, warning: { backgroundColor: '#f39c12', color: '#fff' } };
+            const sizes = { small: { padding: '10px 20px', fontSize: 16 }, medium: { padding: '15px 30px', fontSize: 18 }, large: { padding: '20px 40px', fontSize: 22 } };
+            return (<button onClick={disabled ? undefined : onClick} style={{ ...baseStyles, ...variants[variant], ...sizes[size], ...style }}>{children}</button>);
+        };
+
+        const TextInput = ({ value, onChange, onSubmit, placeholder, autoFocus }) => (
+            <input type="text" value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && onSubmit()} placeholder={placeholder} autoFocus={autoFocus} autoComplete="off" autoCapitalize="words" style={{ padding: '15px 20px', fontSize: 20, borderRadius: 15, border: '3px solid rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.9)', width: '100%', maxWidth: 300, outline: 'none', textAlign: 'center' }}/>
+        );
+
+        const ScoreSummary = ({ answeredStates, onClose, onReset }) => {
+            const correct = Object.values(answeredStates).filter(v => v === 'correct').length;
+            const incorrect = Object.values(answeredStates).filter(v => v === 'incorrect').length;
+            const skipped = 50 - correct - incorrect;
+            const percentage = Math.round((correct / 50) * 100);
+            let message = '', emoji = '';
+            if (percentage >= 90) { message = "Amazing! You're a geography master!"; emoji = '🏆'; }
+            else if (percentage >= 70) { message = "Great job! Keep practicing!"; emoji = '🌟'; }
+            else if (percentage >= 50) { message = "Good effort! You're getting there!"; emoji = '👍'; }
+            else { message = "Keep practicing! You'll get better!"; emoji = '💪'; }
+
+            return (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 1000 }}>
+                    <div className="animate-fadeIn" style={{ backgroundColor: '#fff', borderRadius: 25, padding: 30, maxWidth: 400, width: '100%', textAlign: 'center' }}>
+                        <div style={{ fontSize: 60, marginBottom: 15 }}>{emoji}</div>
+                        <h2 style={{ color: '#333', marginBottom: 10 }}>Your Score</h2>
+                        <div style={{ fontSize: 48, fontWeight: 'bold', color: percentage >= 70 ? '#2ecc71' : percentage >= 50 ? '#f39c12' : '#e74c3c', marginBottom: 10 }}>{percentage}%</div>
+                        <p style={{ color: '#666', marginBottom: 20, fontSize: 18 }}>{message}</p>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: 30, marginBottom: 25 }}>
+                            <div><div style={{ fontSize: 28, fontWeight: 'bold', color: '#2ecc71' }}>{correct}</div><div style={{ color: '#888', fontSize: 14 }}>Correct</div></div>
+                            <div><div style={{ fontSize: 28, fontWeight: 'bold', color: '#e74c3c' }}>{incorrect}</div><div style={{ color: '#888', fontSize: 14 }}>Wrong</div></div>
+                            <div><div style={{ fontSize: 28, fontWeight: 'bold', color: '#95a5a6' }}>{skipped}</div><div style={{ color: '#888', fontSize: 14 }}>Skipped</div></div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                            <Button onClick={onReset} variant="warning">🔄 Try Again</Button>
+                            <Button onClick={onClose} variant="primary">✓ Done</Button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ============== QUIZ MODES ==============
+        const FullMapMode = ({ onAnswer, progress, onFinish }) => {
+            const [currentState, setCurrentState] = useState(null);
+            const [input, setInput] = useState('');
+            const [feedback, setFeedback] = useState(null);
+            const [answeredStates, setAnsweredStates] = useState({});
+            const [showConfetti, setShowConfetti] = useState(false);
+            const [showSummary, setShowSummary] = useState(false);
+
+            useEffect(() => { pickNewState(); }, []);
+
+            const pickNewState = () => {
+                const unanswered = STATES_DATA.filter(s => !answeredStates[s.name]);
+                if (unanswered.length === 0) { setCurrentState(null); setShowSummary(true); return; }
+                const random = unanswered[Math.floor(Math.random() * unanswered.length)];
+                setCurrentState(random.name);
+                setInput('');
+                setFeedback(null);
+            };
+
+            const handleSubmit = () => {
+                if (!input.trim() || !currentState) return;
+                const result = isMatchingAnswer(input, currentState);
+                const isCorrect = result.match;
+                let feedbackMsg = '';
+                if (isCorrect && result.exact) feedbackMsg = `🎉 Correct! That's ${currentState}!`;
+                else if (isCorrect && !result.exact) feedbackMsg = `✓ Close enough! It's ${currentState}.`;
+                else if (result.closeMatch) feedbackMsg = `Almost! Did you mean ${currentState}?`;
+                else feedbackMsg = `That was ${currentState}. Keep trying! 💪`;
+                setFeedback({ correct: isCorrect, message: feedbackMsg });
+                setAnsweredStates(prev => ({ ...prev, [currentState]: isCorrect ? 'correct' : 'incorrect' }));
+                onAnswer(currentState, isCorrect);
+                if (isCorrect) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 1500); }
+                setTimeout(pickNewState, 2500);
+            };
+
+            const handleSkip = () => {
+                if (!currentState) return;
+                setAnsweredStates(prev => ({ ...prev, [currentState]: 'skipped' }));
+                setFeedback({ correct: false, message: `Skipped! That was ${currentState}.` });
+                setTimeout(pickNewState, 1500);
+            };
+
+            const handleFinish = () => {
+                const remaining = STATES_DATA.filter(s => !answeredStates[s.name]);
+                const newAnswered = { ...answeredStates };
+                remaining.forEach(s => { newAnswered[s.name] = 'skipped'; });
+                setAnsweredStates(newAnswered);
+                setShowSummary(true);
+            };
+
+            const handleReset = () => {
+                setAnsweredStates({});
+                setShowSummary(false);
+                setCurrentState(null);
+                setInput('');
+                setFeedback(null);
+                setTimeout(() => {
+                    const random = STATES_DATA[Math.floor(Math.random() * STATES_DATA.length)];
+                    setCurrentState(random.name);
+                }, 100);
+            };
+
+            const correctCount = Object.values(answeredStates).filter(v => v === 'correct').length;
+            const totalAttempted = Object.keys(answeredStates).length;
+
+            return (
+                <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+                    <Confetti show={showConfetti} />
+                    {showSummary && <ScoreSummary answeredStates={answeredStates} onClose={onFinish} onReset={handleReset} />}
+                    <div style={{ display: 'flex', gap: 15, flexWrap: 'wrap', justifyContent: 'center' }}>
+                        <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: '10px 25px', borderRadius: 30, color: '#fff', fontSize: 18 }}>✅ {correctCount} / {totalAttempted}</div>
+                        <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: '10px 25px', borderRadius: 30, color: '#fff', fontSize: 18 }}>📍 {50 - totalAttempted} left</div>
+                    </div>
+                    <h2 style={{ color: '#fff', textAlign: 'center', margin: 0 }}>🗺️ Name the purple state!</h2>
+                    <USMap answeredStates={answeredStates} currentState={currentState} />
+                    {currentState && !showSummary && (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 15 }}>
+                            <TextInput value={input} onChange={setInput} onSubmit={handleSubmit} placeholder="Type state name..." autoFocus />
+                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+                                <Button onClick={handleSubmit} disabled={!input.trim()}>Check ✓</Button>
+                                <Button onClick={handleSkip} variant="secondary">Skip →</Button>
+                            </div>
+                        </div>
+                    )}
+                    {feedback && (
+                        <div className={feedback.correct ? 'animate-bounce' : 'animate-shake'} style={{ padding: '20px 30px', borderRadius: 15, backgroundColor: feedback.correct ? '#2ecc71' : '#e74c3c', color: '#fff', fontSize: 20, fontWeight: 'bold', textAlign: 'center', maxWidth: 400 }}>
+                            {feedback.message}
+                        </div>
+                    )}
+                    {!showSummary && (
+                        <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                            <Button onClick={handleFinish} variant="warning" size="small">📊 Finish</Button>
+                            <Button onClick={handleReset} variant="secondary" size="small">🔄 Reset</Button>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const SingleStateMode = ({ onAnswer, progress }) => {
+            const [currentState, setCurrentState] = useState(null);
+            const [input, setInput] = useState('');
+            const [feedback, setFeedback] = useState(null);
+            const [showConfetti, setShowConfetti] = useState(false);
+            const [streak, setStreak] = useState(0);
+
+            useEffect(() => { pickNewState(); }, []);
+
+            const pickNewState = () => {
+                const sorted = [...STATES_DATA].sort((a, b) => (progress[a.name]?.level || 0) - (progress[b.name]?.level || 0));
+                const pool = sorted.slice(0, 30);
+                const random = pool[Math.floor(Math.random() * pool.length)];
+                setCurrentState(random);
+                setInput('');
+                setFeedback(null);
+            };
+
+            const handleSubmit = () => {
+                if (!input.trim() || !currentState) return;
+                const result = isMatchingAnswer(input, currentState.name);
+                const isCorrect = result.match;
+                let feedbackMsg = isCorrect ? `🎉 Yes! It's ${currentState.name}!` : `It's ${currentState.name}. Keep trying! 💪`;
+                if (isCorrect && !result.exact) feedbackMsg = `✓ Close enough! It's ${currentState.name}.`;
+                setFeedback({ correct: isCorrect, message: feedbackMsg });
+                onAnswer(currentState.name, isCorrect);
+                if (isCorrect) { setShowConfetti(true); setStreak(s => s + 1); setTimeout(() => setShowConfetti(false), 1500); }
+                else { setStreak(0); }
+                setTimeout(pickNewState, 2500);
+            };
+
+            return (
+                <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 25 }}>
+                    <Confetti show={showConfetti} />
+                    {streak > 0 && <div style={{ backgroundColor: '#f39c12', padding: '8px 20px', borderRadius: 20, color: '#fff', fontSize: 16, fontWeight: 'bold' }}>🔥 {streak} in a row!</div>}
+                    <h2 style={{ color: '#fff', textAlign: 'center', margin: 0 }}>🔍 What state is this?</h2>
+                    {currentState && (
+                        <>
+                            <StateShape stateName={currentState.name} size={200} color="#4ecdc4" />
+                            <div style={{ backgroundColor: 'rgba(255,255,255,0.15)', padding: '8px 16px', borderRadius: 10, color: '#fff', fontSize: 14 }}>Region: {currentState.region}</div>
+                            <TextInput value={input} onChange={setInput} onSubmit={handleSubmit} placeholder="Type the state name..." autoFocus />
+                            <Button onClick={handleSubmit} disabled={!input.trim()}>Check ✓</Button>
+                        </>
+                    )}
+                    {feedback && (
+                        <div className={feedback.correct ? 'animate-bounce' : 'animate-shake'} style={{ padding: '20px 30px', borderRadius: 15, backgroundColor: feedback.correct ? '#2ecc71' : '#e74c3c', color: '#fff', fontSize: 22, fontWeight: 'bold', textAlign: 'center' }}>
+                            {feedback.message}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const NameChoiceMode = ({ onAnswer, progress }) => {
+            const [currentState, setCurrentState] = useState(null);
+            const [choices, setChoices] = useState([]);
+            const [selected, setSelected] = useState(null);
+            const [feedback, setFeedback] = useState(null);
+            const [showConfetti, setShowConfetti] = useState(false);
+
+            useEffect(() => { pickNewQuestion(); }, []);
+
+            const pickNewQuestion = () => {
+                const sorted = [...STATES_DATA].sort((a, b) => (progress[a.name]?.level || 0) - (progress[b.name]?.level || 0));
+                const pool = sorted.slice(0, 35);
+                const correct = pool[Math.floor(Math.random() * pool.length)];
+                const wrong = getRandomStates(correct.name, 2);
+                setCurrentState(correct);
+                setChoices(shuffle([correct, ...wrong]));
+                setSelected(null);
+                setFeedback(null);
+            };
+
+            const handleChoice = (choice) => {
+                if (feedback) return;
+                setSelected(choice.name);
+                const isCorrect = choice.name === currentState.name;
+                setFeedback({ correct: isCorrect, answer: currentState.name });
+                onAnswer(currentState.name, isCorrect);
+                if (isCorrect) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 1500); }
+                setTimeout(pickNewQuestion, 2000);
+            };
+
+            return (
+                <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 25 }}>
+                    <Confetti show={showConfetti} />
+                    <h2 style={{ color: '#fff', textAlign: 'center', margin: 0 }}>🎯 Pick the correct name!</h2>
+                    {currentState && (
+                        <>
+                            <StateShape stateName={currentState.name} size={180} color="#4ecdc4" />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 320 }}>
+                                {choices.map((choice, idx) => {
+                                    let variant = 'secondary';
+                                    if (feedback) {
+                                        if (choice.name === currentState.name) variant = 'success';
+                                        else if (choice.name === selected) variant = 'danger';
+                                    }
+                                    return (<Button key={choice.name} onClick={() => handleChoice(choice)} variant={variant} size="large" style={{ width: '100%' }}>{String.fromCharCode(65 + idx)}. {choice.name}</Button>);
+                                })}
+                            </div>
+                        </>
+                    )}
+                    {feedback && (
+                        <div className={feedback.correct ? 'animate-bounce' : 'animate-shake'} style={{ padding: '15px 25px', borderRadius: 15, backgroundColor: feedback.correct ? '#2ecc71' : '#e74c3c', color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
+                            {feedback.correct ? '🎉 Correct!' : `It's ${feedback.answer}!`}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const ShapeChoiceMode = ({ onAnswer, progress }) => {
+            const [currentState, setCurrentState] = useState(null);
+            const [choices, setChoices] = useState([]);
+            const [selected, setSelected] = useState(null);
+            const [feedback, setFeedback] = useState(null);
+            const [showConfetti, setShowConfetti] = useState(false);
+
+            useEffect(() => { pickNewQuestion(); }, []);
+
+            const pickNewQuestion = () => {
+                const sorted = [...STATES_DATA].sort((a, b) => (progress[a.name]?.level || 0) - (progress[b.name]?.level || 0));
+                const pool = sorted.slice(0, 35);
+                const correct = pool[Math.floor(Math.random() * pool.length)];
+                const wrong = getRandomStates(correct.name, 2);
+                setCurrentState(correct);
+                setChoices(shuffle([correct, ...wrong]));
+                setSelected(null);
+                setFeedback(null);
+            };
+
+            const handleChoice = (choice) => {
+                if (feedback) return;
+                setSelected(choice.name);
+                const isCorrect = choice.name === currentState.name;
+                setFeedback({ correct: isCorrect, answer: currentState.name });
+                onAnswer(currentState.name, isCorrect);
+                if (isCorrect) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 1500); }
+                setTimeout(pickNewQuestion, 2000);
+            };
+
+            return (
+                <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 25 }}>
+                    <Confetti show={showConfetti} />
+                    <h2 style={{ color: '#fff', textAlign: 'center', margin: 0 }}>🗺️ Find the shape of...</h2>
+                    {currentState && (
+                        <>
+                            <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: '20px 40px', borderRadius: 20 }}>
+                                <h1 style={{ color: '#fff', margin: 0, fontSize: 32 }}>{currentState.name}</h1>
+                            </div>
+                            <div style={{ display: 'flex', gap: 15, flexWrap: 'wrap', justifyContent: 'center' }}>
+                                {choices.map((choice) => {
+                                    let color = '#4ecdc4';
+                                    if (feedback) {
+                                        if (choice.name === currentState.name) color = '#2ecc71';
+                                        else if (choice.name === selected) color = '#e74c3c';
+                                    }
+                                    return (<StateShape key={choice.name} stateName={choice.name} size={130} color={color} onClick={() => handleChoice(choice)} selected={selected === choice.name} />);
+                                })}
+                            </div>
+                        </>
+                    )}
+                    {feedback && (
+                        <div className={feedback.correct ? 'animate-bounce' : 'animate-shake'} style={{ padding: '15px 25px', borderRadius: 15, backgroundColor: feedback.correct ? '#2ecc71' : '#e74c3c', color: '#fff', fontSize: 20, fontWeight: 'bold' }}>
+                            {feedback.correct ? "🎉 That's it!" : 'Keep practicing! 💪'}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // ============== MAIN APP ==============
+        const App = () => {
+            const [screen, setScreen] = useState('home');
+            const [selectedMode, setSelectedMode] = useState(null);
+            const [progress, setProgress] = useState(loadProgress);
+            const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0 });
+
+            useEffect(() => { saveProgress(progress); }, [progress]);
+
+            const handleAnswer = (stateName, isCorrect) => {
+                setProgress(prev => {
+                    const stateProgress = prev[stateName] || { correct: 0, incorrect: 0, level: 0, streak: 0 };
+                    let newLevel = stateProgress.level;
+                    let newStreak = stateProgress.streak;
+                    if (isCorrect) { newStreak++; if (newStreak >= 2 && newLevel < 5) newLevel++; }
+                    else { newStreak = 0; if (newLevel > 0) newLevel--; }
+                    return { ...prev, [stateName]: { correct: stateProgress.correct + (isCorrect ? 1 : 0), incorrect: stateProgress.incorrect + (isCorrect ? 0 : 1), level: newLevel, streak: newStreak } };
+                });
+                setSessionStats(prev => ({ correct: prev.correct + (isCorrect ? 1 : 0), total: prev.total + 1 }));
+            };
+
+            const startMode = (mode) => { setSelectedMode(mode); setSessionStats({ correct: 0, total: 0 }); setScreen('quiz'); };
+            const startRandom = () => { const modes = ['fullMap', 'singleState', 'nameChoice', 'shapeChoice']; startMode(modes[Math.floor(Math.random() * modes.length)]); };
+
+            const masteredCount = Object.values(progress).filter(p => p.level >= 5).length;
+            const totalAnswered = Object.keys(progress).length;
+
+            if (screen === 'home') {
+                return (
+                    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 20, paddingTop: 40 }}>
+                        <div className="animate-fadeIn" style={{ textAlign: 'center', marginBottom: 30 }}>
+                            <h1 style={{ color: '#fff', fontSize: 36, marginBottom: 10 }}>🗺️ US States Quiz</h1>
+                            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 18 }}>Learn all 50 states!</p>
+                        </div>
+                        <div className="animate-slideIn" style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: 20, marginBottom: 30, width: '100%', maxWidth: 350 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+                                <span style={{ color: '#fff', fontSize: 18 }}>Progress</span>
+                                <span style={{ color: '#ffd700', fontSize: 18, fontWeight: 'bold' }}>⭐ {masteredCount}/50</span>
+                            </div>
+                            <div style={{ height: 12, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 6, overflow: 'hidden' }}>
+                                <div style={{ width: `${(masteredCount / 50) * 100}%`, height: '100%', backgroundColor: '#2ecc71', borderRadius: 6, transition: 'width 0.5s ease' }} />
+                            </div>
+                            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 10, textAlign: 'center' }}>
+                                {totalAnswered === 0 ? "Let's start learning!" : masteredCount === 50 ? "🏆 Geography master!" : `${50 - masteredCount} more to go!`}
+                            </p>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 15, width: '100%', maxWidth: 350 }}>
+                            <h3 style={{ color: '#fff', textAlign: 'center', marginBottom: 5 }}>Choose a Mode</h3>
+                            <Button onClick={() => startMode('fullMap')} variant="secondary" size="large" style={{ width: '100%' }}>🗺️ Full Map Challenge</Button>
+                            <Button onClick={() => startMode('singleState')} variant="secondary" size="large" style={{ width: '100%' }}>🔍 Name the State</Button>
+                            <Button onClick={() => startMode('nameChoice')} variant="secondary" size="large" style={{ width: '100%' }}>🎯 Pick the Name</Button>
+                            <Button onClick={() => startMode('shapeChoice')} variant="secondary" size="large" style={{ width: '100%' }}>🗺️ Pick the Shape</Button>
+                            <div style={{ height: 10 }} />
+                            <Button onClick={startRandom} variant="warning" size="large" style={{ width: '100%' }}>🎲 Random Mode!</Button>
+                            <Button onClick={() => setScreen('progress')} variant="primary" size="medium" style={{ width: '100%', marginTop: 10 }}>📊 View Progress</Button>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (screen === 'progress') {
+                const sortedStates = [...STATES_DATA].sort((a, b) => (progress[b.name]?.level || 0) - (progress[a.name]?.level || 0));
+                return (
+                    <div style={{ minHeight: '100vh', padding: 20 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <Button onClick={() => setScreen('home')} variant="secondary" size="small">← Back</Button>
+                            <h2 style={{ color: '#fff', margin: 0 }}>📊 Progress</h2>
+                            <div style={{ width: 80 }} />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
+                            {sortedStates.map(state => {
+                                const p = progress[state.name] || { level: 0, correct: 0, incorrect: 0 };
+                                return (
+                                    <div key={state.name} style={{ backgroundColor: p.level >= 5 ? 'rgba(46, 204, 113, 0.3)' : 'rgba(255,255,255,0.1)', borderRadius: 12, padding: 12, borderLeft: `4px solid ${p.level >= 5 ? '#2ecc71' : p.level > 0 ? '#f39c12' : '#95a5a6'}` }}>
+                                        <div style={{ color: '#fff', fontWeight: 'bold', marginBottom: 5, fontSize: 14 }}>{state.name}</div>
+                                        <StarRating level={p.level} size={12} />
+                                        <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 5 }}>✓{p.correct} ✗{p.incorrect}</div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            }
+
+            if (screen === 'quiz') {
+                const QuizComponent = { fullMap: FullMapMode, singleState: SingleStateMode, nameChoice: NameChoiceMode, shapeChoice: ShapeChoiceMode }[selectedMode];
+                return (
+                    <div style={{ minHeight: '100vh', padding: 20 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <Button onClick={() => setScreen('home')} variant="secondary" size="small">← Home</Button>
+                            <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: '8px 16px', borderRadius: 20, color: '#fff' }}>Score: {sessionStats.correct}/{sessionStats.total}</div>
+                            <Button onClick={() => { const modes = ['fullMap', 'singleState', 'nameChoice', 'shapeChoice']; setSelectedMode(modes[(modes.indexOf(selectedMode) + 1) % modes.length]); }} variant="secondary" size="small">Switch 🔄</Button>
+                        </div>
+                        <QuizComponent onAnswer={handleAnswer} progress={progress} onFinish={() => setScreen('home')} />
+                    </div>
+                );
+            }
+            return null;
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>

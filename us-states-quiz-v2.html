@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="States Quiz">
+    <title>US States Quiz</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        :root {
+            --primary: #4d96ff;
+            --primary-dark: #3a7bd5;
+            --secondary: #ff6b6b;
+            --success: #6bcb77;
+            --warning: #ffd93d;
+            --error: #ff4757;
+            --bg-main: #f0f7ff;
+            --bg-card: #ffffff;
+            --text-primary: #2d3436;
+            --text-secondary: #636e72;
+            --text-light: #ffffff;
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --border-radius: 12px;
+            --border-radius-lg: 20px;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.15);
+            --transition-fast: 150ms ease;
+            --transition-normal: 250ms ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-family);
+            font-size: 18px;
+            line-height: 1.5;
+            color: var(--text-primary);
+            background: var(--bg-main);
+            min-height: 100vh;
+            overscroll-behavior: none;
+        }
+
+        #root {
+            min-height: 100vh;
+        }
+
+        .app-container {
+            max-width: 1024px;
+            margin: 0 auto;
+            padding: var(--spacing-md);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            padding: var(--spacing-md) 0;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin: 0;
+            color: var(--primary-dark);
+        }
+
+        .header .subtitle {
+            color: var(--text-secondary);
+            margin-top: var(--spacing-xs);
+        }
+
+        /* Mode Selection */
+        .mode-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-md);
+            padding: var(--spacing-md) 0;
+        }
+
+        .mode-card {
+            background: var(--bg-card);
+            border-radius: var(--border-radius-lg);
+            padding: var(--spacing-lg);
+            box-shadow: var(--shadow-md);
+            cursor: pointer;
+            transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            min-height: 140px;
+            border: 3px solid transparent;
+        }
+
+        .mode-card:hover, .mode-card:focus {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+
+        .mode-card:active {
+            transform: scale(0.98);
+        }
+
+        .mode-card .emoji {
+            font-size: 2.5rem;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .mode-card .title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .mode-card .difficulty {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: var(--spacing-xs);
+        }
+
+        .mode-card.random {
+            grid-column: span 2;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .mode-card.random .title,
+        .mode-card.random .difficulty {
+            color: white;
+        }
+
+        /* Quiz Container */
+        .quiz-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm) 0;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+        }
+
+        .back-button {
+            background: var(--bg-card);
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            min-height: 44px;
+        }
+
+        .timer-display {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .timer-current {
+            color: var(--text-primary);
+        }
+
+        .timer-best {
+            color: var(--success);
+            font-size: 0.9rem;
+        }
+
+        /* Progress Bar */
+        .progress-section {
+            padding: var(--spacing-sm) 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #e0e0e0;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            border-radius: 6px;
+            transition: width var(--transition-normal);
+        }
+
+        .progress-text {
+            text-align: center;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-top: var(--spacing-xs);
+        }
+
+        /* US Map */
+        .map-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: var(--spacing-sm);
+        }
+
+        .us-map {
+            width: 100%;
+            max-height: 50vh;
+            touch-action: manipulation;
+        }
+
+        .state-path {
+            fill: #e8f4fd;
+            stroke: #4a90a4;
+            stroke-width: 0.5;
+            cursor: pointer;
+            transition: fill 0.2s ease;
+        }
+
+        .state-path:hover {
+            fill: #b8d4e8;
+        }
+
+        .state-path.selected {
+            fill: var(--warning);
+            stroke: #f39c12;
+            stroke-width: 1.5;
+        }
+
+        .state-path.correct {
+            fill: var(--success);
+            stroke: #4a9c5d;
+        }
+
+        .state-path.incorrect {
+            fill: var(--error);
+            stroke: #d63031;
+        }
+
+        .state-path.answered {
+            fill: #b8d4e8;
+            stroke: #4a90a4;
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: var(--spacing-md);
+            background: var(--bg-card);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-md);
+            margin-top: var(--spacing-md);
+        }
+
+        .input-prompt {
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            color: var(--text-primary);
+        }
+
+        .state-input {
+            width: 100%;
+            height: 56px;
+            padding: var(--spacing-md) var(--spacing-lg);
+            font-size: 1.2rem;
+            font-family: inherit;
+            border: 3px solid var(--primary);
+            border-radius: var(--border-radius);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            text-align: center;
+            outline: none;
+        }
+
+        .state-input:focus {
+            border-color: var(--primary-dark);
+            box-shadow: 0 0 0 4px rgba(77, 150, 255, 0.2);
+        }
+
+        .submit-button {
+            width: 100%;
+            height: 56px;
+            margin-top: var(--spacing-md);
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background var(--transition-fast);
+        }
+
+        .submit-button:hover {
+            background: var(--primary-dark);
+        }
+
+        .submit-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Action Buttons for Full Map Mode */
+        .action-buttons {
+            display: flex;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-md);
+        }
+
+        .action-button {
+            flex: 1;
+            height: 50px;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 2px solid;
+            transition: all var(--transition-fast);
+        }
+
+        .action-button.check {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+
+        .action-button.reset {
+            background: white;
+            border-color: var(--secondary);
+            color: var(--secondary);
+        }
+
+        .action-button:hover {
+            transform: scale(1.02);
+        }
+
+        /* Choice Buttons */
+        .choices-container {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+            padding: var(--spacing-md) 0;
+        }
+
+        .choice-button {
+            width: 100%;
+            min-height: 60px;
+            padding: var(--spacing-md) var(--spacing-lg);
+            font-size: 1.2rem;
+            font-weight: 600;
+            font-family: inherit;
+            background: var(--bg-card);
+            border: 3px solid var(--primary);
+            border-radius: var(--border-radius);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .choice-button:hover:not(:disabled) {
+            background: var(--primary);
+            color: white;
+        }
+
+        .choice-button:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        .choice-button.correct {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+
+        .choice-button.incorrect {
+            background: var(--error);
+            border-color: var(--error);
+            color: white;
+        }
+
+        .choice-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        /* Shape Choices */
+        .shape-choices {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-md);
+            padding: var(--spacing-md) 0;
+        }
+
+        .shape-choice {
+            background: var(--bg-card);
+            border: 3px solid var(--primary);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-md);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .shape-choice:hover:not(:disabled) {
+            border-color: var(--primary-dark);
+            transform: scale(1.02);
+        }
+
+        .shape-choice.correct {
+            background: var(--success);
+            border-color: var(--success);
+        }
+
+        .shape-choice.incorrect {
+            background: var(--error);
+            border-color: var(--error);
+        }
+
+        .shape-choice svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Single State Display */
+        .single-state-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: var(--spacing-lg);
+            flex: 1;
+        }
+
+        .single-state-svg {
+            max-width: 300px;
+            max-height: 250px;
+        }
+
+        .single-state-svg .state-path {
+            fill: var(--primary);
+            stroke: var(--primary-dark);
+            stroke-width: 2;
+        }
+
+        /* State Name Display */
+        .state-name-display {
+            text-align: center;
+            padding: var(--spacing-xl);
+        }
+
+        .state-name-display h2 {
+            font-size: 2.5rem;
+            color: var(--primary-dark);
+            margin: 0;
+        }
+
+        .state-name-display p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        /* Feedback Overlay */
+        .feedback-overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .feedback-overlay.correct {
+            background: rgba(107, 203, 119, 0.95);
+        }
+
+        .feedback-overlay.incorrect {
+            background: rgba(255, 107, 107, 0.92);
+        }
+
+        .feedback-icon {
+            font-size: 5rem;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .feedback-message {
+            font-size: 2rem;
+            font-weight: 700;
+            color: white;
+            text-align: center;
+        }
+
+        .feedback-answer {
+            font-size: 1.3rem;
+            color: white;
+            margin-top: var(--spacing-md);
+            text-align: center;
+        }
+
+        /* Completion Screen */
+        .completion-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: var(--spacing-xl);
+            flex: 1;
+        }
+
+        .completion-screen .trophy {
+            font-size: 5rem;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .completion-screen h2 {
+            font-size: 2rem;
+            color: var(--primary-dark);
+            margin: 0;
+        }
+
+        .completion-screen .score {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            margin: var(--spacing-md) 0;
+        }
+
+        .completion-screen .time-result {
+            font-size: 1.2rem;
+            color: var(--success);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .completion-screen .new-record {
+            color: var(--warning);
+            font-weight: 700;
+        }
+
+        .play-again-button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: var(--spacing-md) var(--spacing-xl);
+            border-radius: var(--border-radius);
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: var(--spacing-md);
+        }
+
+        /* Check Work Results */
+        .check-results {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: var(--spacing-md);
+        }
+
+        .check-results-card {
+            background: white;
+            border-radius: var(--border-radius-lg);
+            padding: var(--spacing-xl);
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .check-results-card h3 {
+            font-size: 1.5rem;
+            margin: 0 0 var(--spacing-md) 0;
+        }
+
+        .check-results-card .score-big {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .check-results-card .score-label {
+            color: var(--text-secondary);
+        }
+
+        .check-results-card .continue-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: var(--spacing-md) var(--spacing-xl);
+            border-radius: var(--border-radius);
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: var(--spacing-lg);
+        }
+
+        /* Confetti */
+        .confetti-container {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .confetti-piece {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            top: -20px;
+            animation: confetti-fall 2.5s ease-out forwards;
+        }
+
+        @keyframes confetti-fall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        /* Timer Toggle */
+        .timer-toggle {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-md);
+            background: var(--bg-card);
+            border-radius: var(--border-radius);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .timer-toggle label {
+            font-weight: 600;
+        }
+
+        .toggle-switch {
+            width: 50px;
+            height: 28px;
+            background: #ccc;
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: background var(--transition-fast);
+        }
+
+        .toggle-switch.active {
+            background: var(--primary);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform var(--transition-fast);
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(22px);
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .mode-grid {
+                grid-template-columns: 1fr;
+            }
+            .mode-card.random {
+                grid-column: span 1;
+            }
+            .shape-choices {
+                grid-template-columns: 1fr;
+            }
+            .header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+        // US States Data
+        const STATES_DATA = [
+            { id: "AL", name: "Alabama", region: "Southeast" },
+            { id: "AK", name: "Alaska", region: "West" },
+            { id: "AZ", name: "Arizona", region: "Southwest" },
+            { id: "AR", name: "Arkansas", region: "South" },
+            { id: "CA", name: "California", region: "West" },
+            { id: "CO", name: "Colorado", region: "West" },
+            { id: "CT", name: "Connecticut", region: "Northeast" },
+            { id: "DE", name: "Delaware", region: "Northeast" },
+            { id: "FL", name: "Florida", region: "Southeast" },
+            { id: "GA", name: "Georgia", region: "Southeast" },
+            { id: "HI", name: "Hawaii", region: "West" },
+            { id: "ID", name: "Idaho", region: "West" },
+            { id: "IL", name: "Illinois", region: "Midwest" },
+            { id: "IN", name: "Indiana", region: "Midwest" },
+            { id: "IA", name: "Iowa", region: "Midwest" },
+            { id: "KS", name: "Kansas", region: "Midwest" },
+            { id: "KY", name: "Kentucky", region: "Southeast" },
+            { id: "LA", name: "Louisiana", region: "South" },
+            { id: "ME", name: "Maine", region: "Northeast" },
+            { id: "MD", name: "Maryland", region: "Northeast" },
+            { id: "MA", name: "Massachusetts", region: "Northeast" },
+            { id: "MI", name: "Michigan", region: "Midwest" },
+            { id: "MN", name: "Minnesota", region: "Midwest" },
+            { id: "MS", name: "Mississippi", region: "South" },
+            { id: "MO", name: "Missouri", region: "Midwest" },
+            { id: "MT", name: "Montana", region: "West" },
+            { id: "NE", name: "Nebraska", region: "Midwest" },
+            { id: "NV", name: "Nevada", region: "West" },
+            { id: "NH", name: "New Hampshire", region: "Northeast" },
+            { id: "NJ", name: "New Jersey", region: "Northeast" },
+            { id: "NM", name: "New Mexico", region: "Southwest" },
+            { id: "NY", name: "New York", region: "Northeast" },
+            { id: "NC", name: "North Carolina", region: "Southeast" },
+            { id: "ND", name: "North Dakota", region: "Midwest" },
+            { id: "OH", name: "Ohio", region: "Midwest" },
+            { id: "OK", name: "Oklahoma", region: "South" },
+            { id: "OR", name: "Oregon", region: "West" },
+            { id: "PA", name: "Pennsylvania", region: "Northeast" },
+            { id: "RI", name: "Rhode Island", region: "Northeast" },
+            { id: "SC", name: "South Carolina", region: "Southeast" },
+            { id: "SD", name: "South Dakota", region: "Midwest" },
+            { id: "TN", name: "Tennessee", region: "Southeast" },
+            { id: "TX", name: "Texas", region: "South" },
+            { id: "UT", name: "Utah", region: "West" },
+            { id: "VT", name: "Vermont", region: "Northeast" },
+            { id: "VA", name: "Virginia", region: "Southeast" },
+            { id: "WA", name: "Washington", region: "West" },
+            { id: "WV", name: "West Virginia", region: "Southeast" },
+            { id: "WI", name: "Wisconsin", region: "Midwest" },
+            { id: "WY", name: "Wyoming", region: "West" }
+        ];
+
+        // Accurate SVG paths for US states - will be populated next
+
+        // App placeholder
+        const App = () => {
+            return (
+                <div className="app-container">
+                    <div className="header">
+                        <h1>US States Quiz</h1>
+                        <p className="subtitle">Loading...</p>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
