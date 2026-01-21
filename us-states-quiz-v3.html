@@ -735,8 +735,8 @@ const formatTime = ms => {
     const totalSeconds = Math.floor(ms / 1000);
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    const centiseconds = Math.floor((ms % 1000) / 10);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
+    const milliseconds = ms % 1000;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
 };
 
 const formatDate = (timestamp) => {
@@ -855,21 +855,29 @@ const FeedbackOverlay = ({ show, isCorrect, correctAnswer, onClose }) => {
     const onCloseRef = useRef(onClose);
     onCloseRef.current = onClose;
 
+    // Memoize the message so it doesn't change on every re-render
+    const [displayMsg, setDisplayMsg] = useState('');
+
     useEffect(() => {
         if (show) {
-            const timer = setTimeout(() => onCloseRef.current(), 1400);
+            // Pick message once when shown, not on every render
+            const msg = isCorrect
+                ? GOOD_MSGS[Math.floor(Math.random() * GOOD_MSGS.length)]
+                : TRY_MSGS[Math.floor(Math.random() * TRY_MSGS.length)];
+            setDisplayMsg(msg);
+
+            // Auto-close after 2 seconds
+            const timer = setTimeout(() => onCloseRef.current(), 2000);
             return () => clearTimeout(timer);
         }
-    }, [show]); // Only depend on 'show', not onClose
+    }, [show, isCorrect]);
 
     if (!show) return null;
-    const msg = isCorrect ? GOOD_MSGS[Math.floor(Math.random() * GOOD_MSGS.length)]
-                          : TRY_MSGS[Math.floor(Math.random() * TRY_MSGS.length)];
     return (
         <div className={`feedback ${isCorrect ? 'correct' : 'incorrect'}`}>
             <Confetti active={isCorrect} />
             <div className="icon">{isCorrect ? '🎉' : '💪'}</div>
-            <div className="msg">{msg}</div>
+            <div className="msg">{displayMsg}</div>
             {!isCorrect && <div className="answer">It was <strong>{correctAnswer}</strong></div>}
         </div>
     );
