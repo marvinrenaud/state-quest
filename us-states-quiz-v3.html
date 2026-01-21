@@ -860,7 +860,10 @@ const CheckResults = ({ correct, total, onClose }) => (
 const SMALL_STATES = new Set(['CT', 'DE', 'DC', 'HI', 'MA', 'MD', 'NH', 'NJ', 'RI', 'VT', 'WV', 'SC', 'IN', 'KY', 'TN', 'VA', 'NC', 'LA', 'MS', 'AL', 'GA', 'FL', 'PA', 'NY', 'OH', 'MI', 'WI', 'IL', 'IA', 'MO', 'AR', 'OK']);
 
 // Full US Map with optional labels
-const USMap = ({ onSelect, answers, selectedId, showResults, answeredStates, correctStates, wrongStates, showLabels, showResultColors }) => {
+// answers = {stateId: userAnswer} - what the user typed
+// showResultColors = true means show green/red with correct names
+// showResultColors = false means show blue with user's answers
+const USMap = ({ onSelect, answers, selectedId, answeredStates, correctStates, wrongStates, showLabels, showResultColors }) => {
     const getStateClass = (id) => {
         let cls = 'state-path';
         if (selectedId === id) cls += ' selected';
@@ -878,19 +881,40 @@ const USMap = ({ onSelect, answers, selectedId, showResults, answeredStates, cor
         return cls;
     };
 
-    const getLabel = (state) => {
-        // Use initials for small states, full name for large states
+    // Get correct label (full name for large states, initials for small)
+    const getCorrectLabel = (state) => {
         return SMALL_STATES.has(state.id) ? state.id : state.name;
     };
 
-    const getLabelClass = (state) => {
-        return SMALL_STATES.has(state.id) ? 'state-label initials' : 'state-label full-name';
+    const getLabelClass = (state, text) => {
+        // Use smaller font if text is long (user typed something long or full state name)
+        const isShort = text && text.length <= 2;
+        return isShort ? 'state-label initials' : 'state-label full-name';
     };
 
-    // Get all states that should have labels
-    const labeledStates = showResultColors
-        ? new Set([...(correctStates || []), ...(wrongStates || [])])
-        : answeredStates;
+    // Determine which states to label and what text to show
+    const getLabelsToRender = () => {
+        if (showResultColors) {
+            // Results mode: show correct names for all answered states
+            const allAnswered = new Set([...(correctStates || []), ...(wrongStates || [])]);
+            return Array.from(allAnswered).map(id => {
+                const state = STATES[id];
+                if (!state) return null;
+                return { id, state, text: getCorrectLabel(state) };
+            }).filter(Boolean);
+        } else if (answeredStates && answers) {
+            // Quiz mode: show what the user typed
+            return Array.from(answeredStates).map(id => {
+                const state = STATES[id];
+                if (!state) return null;
+                const userAnswer = answers[id] || '';
+                return { id, state, text: userAnswer };
+            }).filter(Boolean);
+        }
+        return [];
+    };
+
+    const labelsToRender = showLabels ? getLabelsToRender() : [];
 
     return (
         <svg viewBox="0 0 959 593" className="us-map">
@@ -902,15 +926,11 @@ const USMap = ({ onSelect, answers, selectedId, showResults, answeredStates, cor
                     onClick={() => onSelect && onSelect(state)}
                 />
             ))}
-            {showLabels && labeledStates && Array.from(labeledStates).map(id => {
-                const state = STATES[id];
-                if (!state) return null;
-                return (
-                    <text key={`label-${id}`} x={state.center[0]} y={state.center[1]} className={getLabelClass(state)}>
-                        {getLabel(state)}
-                    </text>
-                );
-            })}
+            {labelsToRender.map(({ id, state, text }) => (
+                <text key={`label-${id}`} x={state.center[0]} y={state.center[1]} className={getLabelClass(state, text)}>
+                    {text}
+                </text>
+            ))}
         </svg>
     );
 };
