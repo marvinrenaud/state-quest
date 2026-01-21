@@ -176,6 +176,10 @@
             color: var(--primary);
             font-size: 1.4rem;
             letter-spacing: 0.5px;
+            font-variant-numeric: tabular-nums;
+            min-width: 160px;
+            display: inline-block;
+            text-align: right;
         }
         .timer .best {
             color: var(--success);
@@ -992,8 +996,14 @@ const HighlightMap = ({ highlightId }) => {
 // Progress Page
 const ProgressPage = () => {
     const [history, setHistory] = useState(() => loadHistory());
-    const bestTimes = loadBestTimes();
-    
+    const [bestTimes, setBestTimes] = useState(() => loadBestTimes());
+
+    // Reload history and best times when component mounts/remounts
+    useEffect(() => {
+        setHistory(loadHistory());
+        setBestTimes(loadBestTimes());
+    }, []);
+
     const stats = useMemo(() => {
         const totalGames = history.length;
         const totalCorrect = history.reduce((sum, h) => sum + h.score, 0);
@@ -1631,12 +1641,15 @@ const App = () => {
     };
 
     const handlePlayAgain = () => {
-        setResult(null);
-        setGameKey(Date.now()); // Force quiz component to remount with fresh state
+        // Pick new random mode FIRST (before triggering re-render)
         if (mode === 'random') {
             const modes = ['fullMap', 'singleState', 'nameChoices', 'shapeChoices'];
             setCurrentRandomMode(modes[Math.floor(Math.random() * modes.length)]);
         }
+        // Force fresh mount with new key
+        setGameKey(Date.now());
+        // Clear result LAST (this triggers the re-render that shows the quiz)
+        setResult(null);
     };
 
     const handleChangeMode = () => {
