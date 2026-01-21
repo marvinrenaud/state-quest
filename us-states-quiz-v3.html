@@ -38,8 +38,8 @@
         .app { max-width: 900px; margin: 0 auto; padding: 16px; flex: 1; width: 100%; }
         
         .header { text-align: center; padding: 20px 0; }
-        .header h1 { 
-            font-size: 2.2rem; 
+        .header h1 {
+            font-size: 2.2rem;
             background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -48,8 +48,42 @@
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 2px;
+            cursor: pointer;
+            transition: opacity 0.2s;
         }
+        .header h1:hover { opacity: 0.8; }
         .header p { color: var(--text-muted); font-size: 1rem; }
+
+        .quiz-header {
+            display: grid;
+            grid-template-columns: 80px 1fr 80px;
+            align-items: center;
+            padding: 10px 0;
+            margin-bottom: 8px;
+        }
+        .quiz-header .exit-btn {
+            justify-self: start;
+            background: var(--bg-card);
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .quiz-header .exit-btn:hover { background: var(--primary); color: #fff; }
+        .quiz-header .title {
+            justify-self: center;
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            cursor: pointer;
+        }
+        .quiz-header .title:hover { opacity: 0.8; }
         
         .nav-tabs {
             display: flex;
@@ -1187,6 +1221,9 @@ const FullMapQuiz = ({ onComplete, timerEnabled, bestTime }) => {
             }]);
         }
 
+        // Track each activity
+        saveToHistory('fullMap', isCorrect ? 1 : 0, 1, 0);
+
         setInput('');
         setSelected(null);
     };
@@ -1361,6 +1398,8 @@ const SingleStateQuiz = ({ onComplete, timerEnabled, bestTime }) => {
         const isCorrect = checkAnswer(input, current.name);
         if (isCorrect) setCorrect(c => c + 1);
         setFeedback({ isCorrect, correctAnswer: current.name });
+        // Track each activity
+        saveToHistory('singleState', isCorrect ? 1 : 0, 1, 0);
     };
 
     const handleNext = () => {
@@ -1439,6 +1478,8 @@ const NameChoicesQuiz = ({ onComplete, timerEnabled, bestTime }) => {
         const isCorrect = choice.id === current.id;
         if (isCorrect) setCorrect(c => c + 1);
         setFeedback({ isCorrect, correctAnswer: current.name });
+        // Track each activity
+        saveToHistory('nameChoices', isCorrect ? 1 : 0, 1, 0);
     };
 
     const handleNext = () => {
@@ -1516,6 +1557,8 @@ const ShapeChoicesQuiz = ({ onComplete, timerEnabled, bestTime }) => {
         const isCorrect = choice.id === current.id;
         if (isCorrect) setCorrect(c => c + 1);
         setFeedback({ isCorrect, correctAnswer: current.name });
+        // Track each activity
+        saveToHistory('shapeChoices', isCorrect ? 1 : 0, 1, 0);
     };
 
     const handleNext = () => {
@@ -1567,6 +1610,187 @@ const ShapeChoicesQuiz = ({ onComplete, timerEnabled, bestTime }) => {
     );
 };
 
+// Mystery Quiz - Mixes all question types randomly
+const MysteryQuiz = ({ onComplete, timerEnabled, bestTime }) => {
+    // Create queue with random question types for each state
+    const [questionQueue] = useState(() => {
+        const states = shuffle([...STATES_ARRAY]);
+        const questionTypes = ['singleState', 'nameChoices', 'shapeChoices'];
+        return states.map(state => ({
+            state,
+            type: questionTypes[Math.floor(Math.random() * questionTypes.length)]
+        }));
+    });
+
+    const [index, setIndex] = useState(0);
+    const [input, setInput] = useState('');
+    const [choices, setChoices] = useState(() => getRandomChoices(questionQueue[0].state));
+    const [correct, setCorrect] = useState(0);
+    const [feedback, setFeedback] = useState(null);
+    const [selected, setSelected] = useState(null);
+    const [startTime] = useState(Date.now());
+    const [elapsed, setElapsed] = useState(0);
+    const inputRef = useRef();
+
+    useEffect(() => {
+        if (timerEnabled) {
+            const interval = setInterval(() => setElapsed(Date.now() - startTime), 100);
+            return () => clearInterval(interval);
+        }
+    }, [timerEnabled, startTime]);
+
+    useEffect(() => {
+        if (questionQueue[index]?.type === 'singleState') {
+            inputRef.current?.focus();
+        }
+    }, [index, questionQueue]);
+
+    const current = questionQueue[index];
+    const currentState = current?.state;
+    const currentType = current?.type;
+
+    // Handle text input submission (singleState mode)
+    const handleTextSubmit = () => {
+        if (!input.trim()) return;
+        const isCorrect = checkAnswer(input, currentState.name);
+        if (isCorrect) setCorrect(c => c + 1);
+        setFeedback({ isCorrect, correctAnswer: currentState.name });
+        // Track activity
+        saveToHistory('mystery', isCorrect ? 1 : 0, 1, 0);
+    };
+
+    // Handle choice selection (nameChoices and shapeChoices modes)
+    const handleChoice = (choice) => {
+        if (feedback) return;
+        setSelected(choice.id);
+        const isCorrect = choice.id === currentState.id;
+        if (isCorrect) setCorrect(c => c + 1);
+        setFeedback({ isCorrect, correctAnswer: currentState.name });
+        // Track activity
+        saveToHistory('mystery', isCorrect ? 1 : 0, 1, 0);
+    };
+
+    const handleNext = () => {
+        setFeedback(null);
+        setSelected(null);
+        setInput('');
+        if (index + 1 >= 50) {
+            const isNewRecord = timerEnabled && saveBestTime('mystery', elapsed);
+            onComplete(correct, 50, elapsed, isNewRecord);
+        } else {
+            const nextIndex = index + 1;
+            setIndex(nextIndex);
+            setChoices(getRandomChoices(questionQueue[nextIndex].state));
+        }
+    };
+
+    if (index >= 50) return null;
+
+    // Render based on question type
+    const renderQuestion = () => {
+        switch (currentType) {
+            case 'singleState':
+                return (
+                    <>
+                        <div className="single-state">
+                            <HighlightMap highlightId={currentState.id} />
+                        </div>
+                        <div className="prompt">🎯 Type the state name:</div>
+                        <div className="input-area" style={{padding: '8px 0'}}>
+                            <input ref={inputRef} type="text" className="state-input" value={input}
+                                onChange={e => setInput(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleTextSubmit()}
+                                placeholder="Type state name..." autoComplete="off"
+                                disabled={feedback !== null} />
+                            <button className="submit-btn" onClick={handleTextSubmit}
+                                disabled={!input.trim() || feedback !== null}>
+                                Lock It In! 🔒
+                            </button>
+                        </div>
+                    </>
+                );
+
+            case 'nameChoices':
+                return (
+                    <>
+                        <div className="single-state">
+                            <HighlightMap highlightId={currentState.id} />
+                        </div>
+                        <div className="prompt">⚡ Which state is highlighted?</div>
+                        <div className="choices">
+                            {choices.map(choice => (
+                                <button key={choice.id}
+                                    className={`choice-btn ${feedback && choice.id === currentState.id ? 'correct' : ''}
+                                        ${feedback && selected === choice.id && choice.id !== currentState.id ? 'incorrect' : ''}`}
+                                    onClick={() => handleChoice(choice)} disabled={feedback !== null}>
+                                    {choice.name}
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                );
+
+            case 'shapeChoices':
+                return (
+                    <>
+                        <div className="state-name-display">
+                            <h2>{currentState.name}</h2>
+                            <p>🎯 Find this state on the map!</p>
+                        </div>
+                        <div className="shape-grid">
+                            {choices.map(choice => (
+                                <div key={choice.id}
+                                    className={`shape-btn ${feedback && choice.id === currentState.id ? 'correct' : ''}
+                                        ${feedback && selected === choice.id && choice.id !== currentState.id ? 'incorrect' : ''}`}
+                                    onClick={() => handleChoice(choice)}>
+                                    <HighlightMap highlightId={choice.id} />
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                );
+
+            default:
+                return null;
+        }
+    };
+
+    const getTypeLabel = () => {
+        switch (currentType) {
+            case 'singleState': return '📝 Type It';
+            case 'nameChoices': return '🎯 Pick Name';
+            case 'shapeChoices': return '🗺️ Pick Shape';
+            default: return '❓ Mystery';
+        }
+    };
+
+    return (
+        <div>
+            <ModeTitle mode="random" />
+            {timerEnabled && (
+                <div className={`timer ${bestTime && elapsed > bestTime ? 'behind-pace' : ''}`}>
+                    <span className="current">⏱️ {formatTime(elapsed)}</span>
+                    {bestTime && <span className="best">🏆 Best: {formatTime(bestTime)}</span>}
+                </div>
+            )}
+            <div className="progress-section">
+                <div className="progress-bar">
+                    <div className="progress-fill" style={{ width: `${((index + 1) / 50) * 100}%` }} />
+                </div>
+                <div className="progress-text">
+                    State <span className="score">{index + 1}</span> of 50
+                    <span style={{marginLeft: 12, padding: '2px 8px', background: 'var(--bg-light)', borderRadius: 6, fontSize: '0.85rem'}}>
+                        {getTypeLabel()}
+                    </span>
+                </div>
+            </div>
+            {renderQuestion()}
+            <FeedbackOverlay show={feedback !== null} isCorrect={feedback?.isCorrect}
+                correctAnswer={feedback?.correctAnswer} onClose={handleNext} />
+        </div>
+    );
+};
+
 // Completion Screen
 const CompletionScreen = ({ score, total, time, isNewRecord, onPlayAgain, onChangeMode }) => {
     const emoji = score >= 45 ? '🏆' : score >= 35 ? '🌟' : score >= 25 ? '💪' : '🎮';
@@ -1592,7 +1816,7 @@ const CompletionScreen = ({ score, total, time, isNewRecord, onPlayAgain, onChan
 // Footer Component
 const Footer = () => (
     <div className="footer">
-        Made by dad with love <span className="heart">❤️</span>
+        Made with <span style={{color: '#991b1b'}}>❤️</span> by dad
     </div>
 );
 
@@ -1602,7 +1826,6 @@ const App = () => {
     const [page, setPage] = useState(() => getHashMode() === 'progress' ? 'progress' : 'play');
     const [timerEnabled, setTimerEnabled] = useState(false);
     const [result, setResult] = useState(null);
-    const [currentRandomMode, setCurrentRandomMode] = useState(null);
     const [gameKey, setGameKey] = useState(Date.now()); // Key to force quiz remount
     const bestTimes = loadBestTimes();
 
@@ -1624,16 +1847,8 @@ const App = () => {
 
     const handleModeSelect = (selectedMode) => {
         setGameKey(Date.now()); // Fresh game state
-        if (selectedMode === 'random') {
-            const modes = ['fullMap', 'singleState', 'nameChoices', 'shapeChoices'];
-            const randomMode = modes[Math.floor(Math.random() * modes.length)];
-            setCurrentRandomMode(randomMode);
-            setMode('random');
-            setHash('random');
-        } else {
-            setMode(selectedMode);
-            setHash(selectedMode);
-        }
+        setMode(selectedMode);
+        setHash(selectedMode);
     };
 
     const handleComplete = (score, total, time, isNewRecord) => {
@@ -1641,28 +1856,19 @@ const App = () => {
     };
 
     const handlePlayAgain = () => {
-        // Pick new random mode FIRST (before triggering re-render)
-        if (mode === 'random') {
-            const modes = ['fullMap', 'singleState', 'nameChoices', 'shapeChoices'];
-            setCurrentRandomMode(modes[Math.floor(Math.random() * modes.length)]);
-        }
-        // Force fresh mount with new key
-        setGameKey(Date.now());
-        // Clear result LAST (this triggers the re-render that shows the quiz)
+        setGameKey(Date.now()); // Force fresh mount
         setResult(null);
     };
 
     const handleChangeMode = () => {
         setMode(null);
         setResult(null);
-        setCurrentRandomMode(null);
         setHash(null);
     };
 
     const handleBack = () => {
         setMode(null);
         setResult(null);
-        setCurrentRandomMode(null);
         setHash(null);
     };
 
@@ -1677,20 +1883,21 @@ const App = () => {
         setResult(null);
     };
 
-    const activeMode = mode === 'random' ? currentRandomMode : mode;
-
     const renderQuiz = () => {
-        const modeKey = mode === 'random' ? 'random' : activeMode;
         // Use gameKey to force fresh component mount each game
-        switch (activeMode) {
+        // Mystery Challenge uses its own mixed-mode component
+        if (mode === 'random') {
+            return <MysteryQuiz key={gameKey} onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes['mystery']} />;
+        }
+        switch (mode) {
             case 'fullMap':
-                return <FullMapQuiz key={gameKey} onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[modeKey]} />;
+                return <FullMapQuiz key={gameKey} onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[mode]} />;
             case 'singleState':
-                return <SingleStateQuiz key={gameKey} onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[modeKey]} />;
+                return <SingleStateQuiz key={gameKey} onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[mode]} />;
             case 'nameChoices':
-                return <NameChoicesQuiz key={gameKey} onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[modeKey]} />;
+                return <NameChoicesQuiz key={gameKey} onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[mode]} />;
             case 'shapeChoices':
-                return <ShapeChoicesQuiz key={gameKey} onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[modeKey]} />;
+                return <ShapeChoicesQuiz key={gameKey} onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[mode]} />;
             default:
                 return null;
         }
@@ -1699,16 +1906,18 @@ const App = () => {
     return (
         <>
             <div className="app">
-                <div className="header">
-                    <h1>🇺🇸 State Quest</h1>
-                    {!mode && page === 'play' && <p>Master all 50 US states!</p>}
-                </div>
+                {!mode && !result && (
+                    <div className="header">
+                        <h1 onClick={handleBack}>🇺🇸 State Quest</h1>
+                        {page === 'play' && <p>Master all 50 US states!</p>}
+                    </div>
+                )}
 
                 {!mode && !result && (
                     <div className="nav-tabs">
-                        <button className={`nav-tab ${page === 'play' ? 'active' : ''}`} 
+                        <button className={`nav-tab ${page === 'play' ? 'active' : ''}`}
                             onClick={() => handlePageChange('play')}>🎮 Play</button>
-                        <button className={`nav-tab ${page === 'progress' ? 'active' : ''}`} 
+                        <button className={`nav-tab ${page === 'progress' ? 'active' : ''}`}
                             onClick={() => handlePageChange('progress')}>📊 Progress</button>
                     </div>
                 )}
@@ -1719,7 +1928,11 @@ const App = () => {
                     <CompletionScreen {...result} onPlayAgain={handlePlayAgain} onChangeMode={handleChangeMode} />
                 ) : mode ? (
                     <>
-                        <button className="back-btn" onClick={handleBack}>← Exit</button>
+                        <div className="quiz-header">
+                            <button className="exit-btn" onClick={handleBack}>← Exit</button>
+                            <span className="title" onClick={handleBack}>🇺🇸 State Quest</span>
+                            <div></div>
+                        </div>
                         {renderQuiz()}
                     </>
                 ) : (
