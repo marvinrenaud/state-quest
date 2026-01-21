@@ -223,13 +223,18 @@
         }
         
         .state-label {
-            font-size: 8px;
             font-weight: 700;
             fill: #fff;
             text-anchor: middle;
             dominant-baseline: middle;
             pointer-events: none;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            text-shadow: 0 1px 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.5);
+        }
+        .state-label.full-name {
+            font-size: 12px;
+        }
+        .state-label.initials {
+            font-size: 10px;
         }
 
         .input-area { padding: 16px 0; }
@@ -851,17 +856,41 @@ const CheckResults = ({ correct, total, onClose }) => (
     </div>
 );
 
+// Small states that should show initials instead of full names
+const SMALL_STATES = new Set(['CT', 'DE', 'DC', 'HI', 'MA', 'MD', 'NH', 'NJ', 'RI', 'VT', 'WV', 'SC', 'IN', 'KY', 'TN', 'VA', 'NC', 'LA', 'MS', 'AL', 'GA', 'FL', 'PA', 'NY', 'OH', 'MI', 'WI', 'IL', 'IA', 'MO', 'AR', 'OK']);
+
 // Full US Map with optional labels
-const USMap = ({ onSelect, answers, selectedId, showResults, answeredStates, showLabels }) => {
+const USMap = ({ onSelect, answers, selectedId, showResults, answeredStates, correctStates, wrongStates, showLabels, showResultColors }) => {
     const getStateClass = (id) => {
         let cls = 'state-path';
         if (selectedId === id) cls += ' selected';
-        // All answered states get the same blue "correct" styling
-        if (answeredStates && answeredStates.has(id)) {
+        // Show green/red colors when viewing results
+        if (showResultColors) {
+            if (correctStates && correctStates.has(id)) {
+                cls += ' correct';
+            } else if (wrongStates && wrongStates.has(id)) {
+                cls += ' incorrect';
+            }
+        } else if (answeredStates && answeredStates.has(id)) {
+            // During quiz, all answered states get the same blue styling
             cls += ' correct';
         }
         return cls;
     };
+
+    const getLabel = (state) => {
+        // Use initials for small states, full name for large states
+        return SMALL_STATES.has(state.id) ? state.id : state.name;
+    };
+
+    const getLabelClass = (state) => {
+        return SMALL_STATES.has(state.id) ? 'state-label initials' : 'state-label full-name';
+    };
+
+    // Get all states that should have labels
+    const labeledStates = showResultColors
+        ? new Set([...(correctStates || []), ...(wrongStates || [])])
+        : answeredStates;
 
     return (
         <svg viewBox="0 0 959 593" className="us-map">
@@ -873,12 +902,12 @@ const USMap = ({ onSelect, answers, selectedId, showResults, answeredStates, sho
                     onClick={() => onSelect && onSelect(state)}
                 />
             ))}
-            {showLabels && answeredStates && Array.from(answeredStates).map(id => {
+            {showLabels && labeledStates && Array.from(labeledStates).map(id => {
                 const state = STATES[id];
                 if (!state) return null;
                 return (
-                    <text key={`label-${id}`} x={state.center[0]} y={state.center[1]} className="state-label">
-                        {id}
+                    <text key={`label-${id}`} x={state.center[0]} y={state.center[1]} className={getLabelClass(state)}>
+                        {getLabel(state)}
                     </text>
                 );
             })}
@@ -1093,6 +1122,9 @@ const FullMapQuiz = ({ onComplete, timerEnabled, bestTime }) => {
         setSelected(null);
     };
 
+    // Build wrongStates set from wrongAnswers array
+    const wrongStates = useMemo(() => new Set(wrongAnswers.map(w => w.stateId)), [wrongAnswers]);
+
     const handleCheck = () => {
         // Build list of correct answers for display
         const correctAnswersList = Array.from(correctStates).map(id => ({
@@ -1103,7 +1135,9 @@ const FullMapQuiz = ({ onComplete, timerEnabled, bestTime }) => {
             correct: correctStates.size,
             total: answeredStates.size,
             wrongAnswers,
-            correctAnswersList
+            correctAnswersList,
+            correctStates,
+            wrongStates
         });
         setShowCheck(true);
     };
@@ -1174,35 +1208,35 @@ const FullMapQuiz = ({ onComplete, timerEnabled, bestTime }) => {
             )}
             {showCheck && checkResult && (
                 <div className="overlay" onClick={() => setShowCheck(false)}>
-                    <div className="overlay-content" onClick={e => e.stopPropagation()} style={{maxWidth: 500}}>
-                        <h2>📊 Current Score</h2>
+                    <div className="overlay-content" onClick={e => e.stopPropagation()} style={{maxWidth: 700, width: '90vw'}}>
+                        <h2>📊 Your Results</h2>
                         <div className="score-display">
                             <span className="big-score">{checkResult.correct}</span>
                             <span className="score-label">/ {checkResult.total} correct</span>
                         </div>
-                        <div style={{display: 'flex', gap: 16, marginTop: 16, textAlign: 'left'}}>
-                            {checkResult.correctAnswersList.length > 0 && (
-                                <div style={{flex: 1, maxHeight: 200, overflowY: 'auto'}}>
-                                    <h3 style={{marginBottom: 8, color: 'var(--success)'}}>✓ Got Right ({checkResult.correctAnswersList.length})</h3>
-                                    {checkResult.correctAnswersList.map((c, i) => (
-                                        <div key={i} style={{padding: '4px 0', color: 'var(--success)', fontSize: 14}}>
-                                            {c.stateName}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                            {checkResult.wrongAnswers.length > 0 && (
-                                <div style={{flex: 1, maxHeight: 200, overflowY: 'auto'}}>
-                                    <h3 style={{marginBottom: 8, color: 'var(--danger)'}}>❌ To Learn ({checkResult.wrongAnswers.length})</h3>
-                                    {checkResult.wrongAnswers.map((w, i) => (
-                                        <div key={i} style={{padding: '4px 0', fontSize: 14}}>
-                                            <div style={{color: 'var(--text-muted)'}}>{w.userAnswer} →</div>
-                                            <div style={{color: 'var(--danger)'}}>{w.correctAnswer}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                        <div style={{margin: '16px 0', padding: 12, background: 'var(--bg-light)', borderRadius: 12}}>
+                            <USMap
+                                correctStates={checkResult.correctStates}
+                                wrongStates={checkResult.wrongStates}
+                                showLabels={true}
+                                showResultColors={true}
+                            />
                         </div>
+                        <div style={{display: 'flex', gap: 16, fontSize: 14, justifyContent: 'center', marginBottom: 12}}>
+                            <span style={{color: 'var(--success)'}}>🟢 Correct: {checkResult.correctAnswersList.length}</span>
+                            <span style={{color: 'var(--danger)'}}>🔴 Wrong: {checkResult.wrongAnswers.length}</span>
+                        </div>
+                        {checkResult.wrongAnswers.length > 0 && (
+                            <div style={{textAlign: 'left', maxHeight: 150, overflowY: 'auto', padding: '8px 12px', background: 'rgba(239,68,68,0.1)', borderRadius: 8}}>
+                                <h4 style={{marginBottom: 8, color: 'var(--danger)'}}>States to study:</h4>
+                                {checkResult.wrongAnswers.map((w, i) => (
+                                    <div key={i} style={{padding: '4px 0', fontSize: 13}}>
+                                        <span style={{color: 'var(--text-muted)'}}>You said "{w.userAnswer}"</span>
+                                        <span style={{color: 'var(--danger)', marginLeft: 8}}>→ {w.correctAnswer}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                         <button className="submit-btn" onClick={() => setShowCheck(false)} style={{marginTop: 16}}>
                             Got it!
                         </button>
