@@ -745,18 +745,23 @@ const loadHistory = () => {
 };
 
 const saveToHistory = (mode, score, total, time) => {
-    const history = loadHistory();
-    history.unshift({
-        mode,
-        score,
-        total,
-        time,
-        timestamp: Date.now(),
-        id: Date.now()
-    });
-    // Keep only last 50 entries
-    const trimmed = history.slice(0, 50);
-    localStorage.setItem('stateQuestHistory', JSON.stringify(trimmed));
+    try {
+        const history = loadHistory();
+        history.unshift({
+            mode,
+            score,
+            total,
+            time,
+            timestamp: Date.now(),
+            id: Date.now()
+        });
+        // Keep only last 50 entries
+        const trimmed = history.slice(0, 50);
+        localStorage.setItem('stateQuestHistory', JSON.stringify(trimmed));
+        console.log('Progress saved:', { mode, score, total }); // Debug log
+    } catch (e) {
+        console.error('Failed to save progress:', e);
+    }
 };
 
 const clearHistory = () => {
@@ -1554,6 +1559,7 @@ const App = () => {
     const [timerEnabled, setTimerEnabled] = useState(false);
     const [result, setResult] = useState(null);
     const [currentRandomMode, setCurrentRandomMode] = useState(null);
+    const [gameKey, setGameKey] = useState(Date.now()); // Key to force quiz remount
     const bestTimes = loadBestTimes();
 
     useEffect(() => {
@@ -1573,6 +1579,7 @@ const App = () => {
     }, []);
 
     const handleModeSelect = (selectedMode) => {
+        setGameKey(Date.now()); // Fresh game state
         if (selectedMode === 'random') {
             const modes = ['fullMap', 'singleState', 'nameChoices', 'shapeChoices'];
             const randomMode = modes[Math.floor(Math.random() * modes.length)];
@@ -1591,6 +1598,7 @@ const App = () => {
 
     const handlePlayAgain = () => {
         setResult(null);
+        setGameKey(Date.now()); // Force quiz component to remount with fresh state
         if (mode === 'random') {
             const modes = ['fullMap', 'singleState', 'nameChoices', 'shapeChoices'];
             setCurrentRandomMode(modes[Math.floor(Math.random() * modes.length)]);
@@ -1626,15 +1634,16 @@ const App = () => {
 
     const renderQuiz = () => {
         const modeKey = mode === 'random' ? 'random' : activeMode;
+        // Use gameKey to force fresh component mount each game
         switch (activeMode) {
             case 'fullMap':
-                return <FullMapQuiz onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[modeKey]} />;
+                return <FullMapQuiz key={gameKey} onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[modeKey]} />;
             case 'singleState':
-                return <SingleStateQuiz onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[modeKey]} />;
+                return <SingleStateQuiz key={gameKey} onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[modeKey]} />;
             case 'nameChoices':
-                return <NameChoicesQuiz onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[modeKey]} />;
+                return <NameChoicesQuiz key={gameKey} onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[modeKey]} />;
             case 'shapeChoices':
-                return <ShapeChoicesQuiz onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[modeKey]} />;
+                return <ShapeChoicesQuiz key={gameKey} onComplete={handleComplete} timerEnabled={timerEnabled} bestTime={bestTimes[modeKey]} />;
             default:
                 return null;
         }
