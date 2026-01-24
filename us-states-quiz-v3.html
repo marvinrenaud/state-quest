@@ -1517,8 +1517,8 @@ const NameChoicesQuiz = ({ onComplete, timerEnabled, bestTime }) => {
             <div className="prompt">⚡ Which state is highlighted?</div>
             <div className="choices">
                 {choices.map(choice => (
-                    <button key={choice.id}
-                        className={`choice-btn ${feedback && choice.id === current.id ? 'correct' : ''} 
+                    <button key={`${index}-${choice.id}`}
+                        className={`choice-btn ${feedback && choice.id === current.id ? 'correct' : ''}
                             ${feedback && selected === choice.id && choice.id !== current.id ? 'incorrect' : ''}`}
                         onClick={() => handleChoice(choice)} disabled={feedback !== null}>
                         {choice.name}
@@ -1596,8 +1596,8 @@ const ShapeChoicesQuiz = ({ onComplete, timerEnabled, bestTime }) => {
             </div>
             <div className="shape-grid">
                 {choices.map(choice => (
-                    <div key={choice.id}
-                        className={`shape-btn ${feedback && choice.id === current.id ? 'correct' : ''} 
+                    <div key={`${index}-${choice.id}`}
+                        className={`shape-btn ${feedback && choice.id === current.id ? 'correct' : ''}
                             ${feedback && selected === choice.id && choice.id !== current.id ? 'incorrect' : ''}`}
                         onClick={() => handleChoice(choice)}>
                         <HighlightMap highlightId={choice.id} />
@@ -1719,7 +1719,7 @@ const MysteryQuiz = ({ onComplete, timerEnabled, bestTime }) => {
                         <div className="prompt">⚡ Which state is highlighted?</div>
                         <div className="choices">
                             {choices.map(choice => (
-                                <button key={choice.id}
+                                <button key={`${index}-${choice.id}`}
                                     className={`choice-btn ${feedback && choice.id === currentState.id ? 'correct' : ''}
                                         ${feedback && selected === choice.id && choice.id !== currentState.id ? 'incorrect' : ''}`}
                                     onClick={() => handleChoice(choice)} disabled={feedback !== null}>
@@ -1739,7 +1739,7 @@ const MysteryQuiz = ({ onComplete, timerEnabled, bestTime }) => {
                         </div>
                         <div className="shape-grid">
                             {choices.map(choice => (
-                                <div key={choice.id}
+                                <div key={`${index}-${choice.id}`}
                                     className={`shape-btn ${feedback && choice.id === currentState.id ? 'correct' : ''}
                                         ${feedback && selected === choice.id && choice.id !== currentState.id ? 'incorrect' : ''}`}
                                     onClick={() => handleChoice(choice)}>
